@@ -2059,46 +2059,34 @@ function showACPTReport(r) {
     [['Commissions (%)', ...m.isiStats.map(s=>s.coPct.toFixed(1))]]
   );
 
+  function chartRow(title, svg, table) {
+    return `<div class="chart-box">
+      <div class="chart-title">${title}</div>
+      <div class="chart-inner">${svg}<div class="chart-tbl">${table}</div></div>
+    </div>`;
+  }
   const chartsHTML = `
   <div class="card">
-    <h2>表現趨勢圖</h2>
-    <div class="chart-row">
-      <div class="chart-box">
-        <div class="chart-title">Hit Reaction Time by Block</div>
-        ${hrtByBlockSvg}${hrtBlockTable}
-      </div>
-      <div class="chart-box">
-        <div class="chart-title">Omissions by Block</div>
-        ${omBlockSvg}${omBlockTable}
-      </div>
-      <div class="chart-box">
-        <div class="chart-title">Commissions by Block</div>
-        ${coBlockSvg}${coBlockTable}
-      </div>
-    </div>
-    <div class="chart-row" style="margin-top:12px">
-      <div class="chart-box">
-        <div class="chart-title">HRT by ISI</div>
-        ${hrtIsiSvg}${hrtIsiTable}
-      </div>
-      <div class="chart-box">
-        <div class="chart-title">Omissions by ISI</div>
-        ${omIsiSvg}${omIsiTable}
-      </div>
-      <div class="chart-box">
-        <div class="chart-title">Commissions by ISI</div>
-        ${coIsiSvg}${coIsiTable}
-      </div>
-    </div>
+    <h2>表現趨勢圖 — By Block</h2>
+    ${chartRow('Hit Reaction Time by Block', hrtByBlockSvg, hrtBlockTable)}
+    ${chartRow('Omissions by Block', omBlockSvg, omBlockTable)}
+    ${chartRow('Commissions by Block', coBlockSvg, coBlockTable)}
+  </div>
+  <div class="card">
+    <h2>表現趨勢圖 — By ISI</h2>
+    ${chartRow('HRT by ISI', hrtIsiSvg, hrtIsiTable)}
+    ${chartRow('Omissions by ISI', omIsiSvg, omIsiTable)}
+    ${chartRow('Commissions by ISI', coIsiSvg, coIsiTable)}
   </div>`;
   const CHART_CSS = `
-    .chart-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    .chart-box{background:#FDFAF6;border-radius:10px;padding:12px 10px;overflow:hidden;page-break-inside:avoid}
-    .chart-title{font-size:.78rem;font-weight:700;color:#5C3A1E;margin-bottom:6px;text-align:center}
-    .ct{width:100%;border-collapse:collapse;font-size:.7rem;margin-top:8px}
-    .ct th{background:#F8F2EA;padding:3px 5px;text-align:center;font-weight:700;color:#7a6052}
-    .ct td{padding:3px 5px;text-align:center;border-top:1px solid #F5EEE6}
-    @media print{.chart-row{grid-template-columns:repeat(3,1fr)}.chart-box{page-break-inside:avoid}}
+    .chart-box{background:#FDFAF6;border-radius:10px;padding:12px 14px;margin-bottom:10px;page-break-inside:avoid}
+    .chart-title{font-size:.82rem;font-weight:700;color:#5C3A1E;margin-bottom:8px}
+    .chart-inner{display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start}
+    .chart-tbl{overflow-x:auto}
+    .ct{width:100%;border-collapse:collapse;font-size:.72rem}
+    .ct th{background:#F8F2EA;padding:4px 6px;text-align:center;font-weight:700;color:#7a6052;white-space:nowrap}
+    .ct td{padding:4px 6px;text-align:center;border-top:1px solid #F5EEE6;white-space:nowrap}
+    @media print{.chart-box{page-break-inside:avoid}.chart-inner{grid-template-columns:2fr 1fr}}
   `;
 
   const ageGroup = getAgeGroup(r.age);
