@@ -661,9 +661,64 @@ function renderResults(r) {
     '⏱ 刺激呈現時間在 requestAnimationFrame 回調中記錄，與實際顯示時間差約 0–16.7 ms（一幀）。' +
     '按鍵時間在 keydown 事件中記錄，鍵盤硬體延遲約 1–15 ms。詳情見 Excel 計時說明工作表。';
 
-  $('btn-export').onclick     = () => exportExcel(r);
+  $('btn-export').onclick     = () => promptExcelPassword(r);
   $('btn-export-csv').onclick = () => exportLegacyCSV(r);
   $('btn-new').onclick        = () => location.reload();
+}
+
+// ─────────────────────────────────────────────
+// Excel download password gate
+// ─────────────────────────────────────────────
+function promptExcelPassword(r) {
+  // Build a simple modal overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText =
+    'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;' +
+    'display:flex;align-items:center;justify-content:center;';
+
+  const box = document.createElement('div');
+  box.style.cssText =
+    'background:#fff;border-radius:14px;padding:36px 40px;width:min(400px,90vw);' +
+    'box-shadow:0 8px 40px rgba(0,0,0,.3);font-family:inherit;';
+  box.innerHTML =
+    '<h3 style="margin:0 0 8px;color:#5C3A1E;font-size:1.1rem;">🔒 下載 Excel 報告</h3>' +
+    '<p style="margin:0 0 18px;font-size:.88rem;color:#7a6052;">請輸入密碼以下載完整報告</p>' +
+    '<input id="pw-input" type="password" placeholder="輸入密碼" ' +
+    '  style="width:100%;padding:10px 14px;border:1.5px solid #D8C9BB;border-radius:8px;' +
+    '         font-size:.97rem;outline:none;box-sizing:border-box;" />' +
+    '<p id="pw-err" style="color:#E53935;font-size:.82rem;margin:8px 0 0;min-height:1.2em;"></p>' +
+    '<div style="display:flex;gap:10px;margin-top:18px;">' +
+    '  <button id="pw-ok" style="flex:2;padding:11px;background:#E65C00;color:#fff;border:none;' +
+    '    border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer;">確認下載</button>' +
+    '  <button id="pw-cancel" style="flex:1;padding:11px;background:#EEE;border:none;' +
+    '    border-radius:9px;font-weight:600;cursor:pointer;">取消</button>' +
+    '</div>';
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const inp = box.querySelector('#pw-input');
+  const err = box.querySelector('#pw-err');
+  inp.focus();
+
+  function close() { document.body.removeChild(overlay); }
+
+  box.querySelector('#pw-cancel').onclick = close;
+  overlay.onclick = e => { if (e.target === overlay) close(); };
+
+  function attempt() {
+    if (inp.value === 'swlucifer/artise@03-6581157') {
+      close();
+      exportExcel(r);
+    } else {
+      err.textContent = '密碼錯誤，請重試';
+      inp.value = '';
+      inp.focus();
+    }
+  }
+
+  box.querySelector('#pw-ok').onclick = attempt;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') attempt(); });
 }
 
 // ─────────────────────────────────────────────
