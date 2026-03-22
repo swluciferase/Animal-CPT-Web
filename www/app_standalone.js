@@ -1197,13 +1197,13 @@ function showACPTReport(r) {
     </div>
   </div>`;
   const CHART_CSS = `
-    .chart-blk{background:#FDFAF6;border-radius:10px;padding:14px 16px;margin-bottom:12px;page-break-inside:avoid}
+    .chart-blk{background:#EEF7FB;border-radius:10px;padding:14px 16px;margin-bottom:12px;border:1px solid #C8E8F4;page-break-inside:avoid}
     .isi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    .chart-isi{background:#FDFAF6;border-radius:10px;padding:12px 10px;page-break-inside:avoid}
-    .chart-title{font-size:.82rem;font-weight:700;color:#5C3A1E;margin-bottom:6px}
-    .ct{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:8px}
-    .ct th{background:#F8F2EA;padding:3px 6px;text-align:center;font-weight:700;color:#7a6052}
-    .ct td{padding:3px 6px;text-align:center;border-top:1px solid #F5EEE6}
+    .chart-isi{background:#EEF7FB;border-radius:10px;padding:12px 10px;border:1px solid #C8E8F4;page-break-inside:avoid}
+    .chart-title{font-size:.8rem;font-weight:700;color:#1A2B3C;margin-bottom:6px}
+    .ct{width:100%;border-collapse:collapse;font-size:.7rem;margin-top:8px}
+    .ct th{background:#4bb9db;color:#fff;padding:4px 6px;text-align:center;font-weight:700}
+    .ct td{padding:4px 6px;text-align:center;border-top:1px solid #C8E8F4}
     @media print{.chart-blk,.chart-isi{page-break-inside:avoid}.isi-row{grid-template-columns:repeat(3,1fr)}}
   `;
 
@@ -1259,45 +1259,92 @@ function showACPTReport(r) {
 
   const detectStr = `${m.detectability.toFixed(2)} (${m.Zfalse.toFixed(2)}, ${m.Zhit.toFixed(2)})`;
 
+  const EEG_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 501.1 95.2" role="img" aria-label="SIGMACOG EEG Logo">
+<defs><style>.els0{fill:#72c4a9}.els1{fill:#faf074}.els2{fill:#e2775a}.els3{fill:#9fc65c}.els4{fill:#c1946b}.els5{fill:#b254b2}.els6{fill:#4bb9db}.els7{fill:#e259b1}</style></defs>
+<path d="M153.7,60.2c1,0,2.1-.1,3.1-.4,1-.3,1.9-.7,2.8-1.3.8-.6,1.5-1.3,2-2.1.5-.8.7-1.8.7-2.9s-.3-2.5-1-3.5c-.7-1-1.6-1.9-2.6-2.8-1.1-.8-2.3-1.6-3.7-2.4-1.4-.7-2.8-1.5-4.3-2.2-1.5-.7-2.9-1.5-4.3-2.4-1.4-.8-2.6-1.7-3.7-2.8-1.1-1-2-2.1-2.6-3.4-.7-1.2-1-2.7-1-4.3s.3-3.1.9-4.5c.6-1.4,1.5-2.6,2.7-3.6,1.2-1,2.6-1.8,4.3-2.4s3.7-.9,5.9-.9,3.8.2,5.4.6c1.6.4,3,1.1,4.2,1.9,1.2.8,2.2,1.9,3,3.1.8,1.2,1.5,2.6,2,4.2l-3.7,1.7c-.4-1.3-1-2.5-1.6-3.6-.7-1.1-1.5-2-2.4-2.8-.9-.8-2-1.4-3.2-1.8-1.2-.4-2.6-.6-4.1-.6s-2.5.2-3.5.6c-1,.4-1.8.9-2.5,1.5-.7.6-1.2,1.3-1.5,2.1-.3.8-.5,1.5-.5,2.3s.3,2.1,1,3.1c.7.9,1.6,1.8,2.7,2.6s2.4,1.6,3.9,2.4c1.4.8,2.9,1.5,4.4,2.3,1.5.8,3,1.6,4.4,2.5s2.7,1.8,3.9,2.8c1.1,1,2,2.1,2.7,3.3.7,1.2,1,2.6,1,4.1s-.3,3.3-1,4.8c-.6,1.5-1.6,2.8-2.9,3.9-1.3,1.1-2.9,2-4.8,2.6-1.9.6-4.1,1-6.6,1s-3.9-.2-5.5-.7c-1.6-.4-3-1.1-4.2-2-1.2-.9-2.3-1.9-3.2-3.1s-1.6-2.6-2.1-4.2l3.8-1.6c.4,1.4,1.1,2.6,1.8,3.7.8,1.1,1.6,2,2.6,2.8,1,.8,2.1,1.3,3.3,1.7,1.2.4,2.5.6,3.9.6Z"/>
+<path d="M178.3,19.4h7.1v42.5h-7.1V19.4Z"/>
+<path d="M221.1,21.5c-2.6,0-4.9.5-7.1,1.4-2.2.9-4,2.2-5.6,3.9-1.6,1.7-2.8,3.8-3.7,6.2-.9,2.4-1.3,5.1-1.3,8.1s.5,5.7,1.4,8.1c1,2.4,2.3,4.4,3.9,6.1s3.6,3,5.8,3.9,4.6,1.4,7.2,1.4,3.5-.3,5-.8c1.5-.5,2.8-1.2,4-2.2v-14.9h-8v-2.5h15.2v18.7c-1.2.7-2.5,1.2-3.7,1.8-1.3.5-2.6.9-4.1,1.3-1.5.3-3.1.6-4.8.8-1.8.2-3.7.3-6,.3s-4.6-.3-6.7-.8c-2.1-.5-4.1-1.3-5.9-2.2-1.8-1-3.4-2.1-4.9-3.4-1.5-1.3-2.7-2.8-3.7-4.4-1-1.6-1.8-3.4-2.4-5.2-.6-1.9-.8-3.8-.8-5.8s.3-3.9.8-5.8c.5-1.9,1.3-3.7,2.3-5.4,1-1.7,2.2-3.2,3.6-4.6s3-2.6,4.8-3.6c1.8-1,3.7-1.8,5.8-2.3,2.1-.6,4.3-.8,6.7-.8s4.3.3,6.2.9c1.9.6,3.7,1.4,5.2,2.4s3,2.2,4.2,3.5,2.3,2.7,3.1,4.1l-3.1,2.1c-1.8-3.4-3.8-6-6-7.5-2.2-1.6-4.7-2.4-7.5-2.4Z"/>
+<path d="M249,19.4h7.3l16.5,32.6h.4l16.2-32.6h7.2v42.5h-7.2V27.1h-.2l-17.4,34.8h-1.5l-17.6-34.5h-.5v34.5h-3.2V19.4Z"/>
+<path d="M324.7,18.5l20,43.5h-7.3l-6.5-14.2h-18.2l-6.7,14.2h-3.6l20.5-43.5h1.8ZM314,45h15.7l-7.7-16.8-7.9,16.8Z"/>
+<path d="M356.2,40.8c0,3,.4,5.6,1.3,8,.9,2.4,2.1,4.4,3.7,6,1.6,1.6,3.4,2.9,5.6,3.8,2.1.9,4.5,1.3,7,1.3s2.9-.3,4.3-.9c1.4-.6,2.7-1.3,3.9-2.3,1.2-.9,2.2-2,3.2-3.1.9-1.2,1.7-2.3,2.3-3.5l3,1.9c-.9,1.4-1.9,2.8-3.1,4.1s-2.6,2.5-4.1,3.5c-1.6,1-3.3,1.8-5.3,2.4-2,.6-4.2.9-6.6.9-3.5,0-6.7-.6-9.6-1.8-2.9-1.2-5.3-2.8-7.4-4.8-2.1-2-3.6-4.4-4.8-7-1.1-2.7-1.7-5.5-1.7-8.5s.3-3.9.8-5.8,1.3-3.7,2.2-5.3c1-1.7,2.2-3.2,3.6-4.6,1.4-1.4,3-2.6,4.7-3.6,1.8-1,3.7-1.8,5.8-2.3,2.1-.5,4.3-.8,6.7-.8s4.4.3,6.3.9c1.9.6,3.7,1.4,5.2,2.4s3,2.2,4.2,3.5,2.3,2.7,3.2,4.1l-3.1,2.1c-1.8-3.4-3.8-6-6-7.5-2.2-1.6-4.7-2.4-7.6-2.4s-4.8.4-6.9,1.3c-2.1.9-4,2.2-5.6,3.8-1.6,1.7-2.8,3.7-3.7,6.1-.9,2.4-1.4,5.1-1.4,8.1Z"/>
+<path d="M421.9,62.9c-3.3,0-6.4-.6-9.2-1.8-2.9-1.2-5.3-2.8-7.4-4.8s-3.8-4.4-5-7.1-1.8-5.6-1.8-8.7.3-4,.8-5.9,1.3-3.6,2.3-5.3c1-1.6,2.2-3.1,3.6-4.4,1.4-1.3,3-2.5,4.7-3.4,1.7-1,3.6-1.7,5.6-2.2s4.1-.8,6.3-.8,4.3.3,6.3.8,3.9,1.3,5.6,2.2c1.7,1,3.3,2.1,4.7,3.4,1.4,1.3,2.6,2.8,3.6,4.4,1,1.6,1.8,3.4,2.3,5.3.5,1.9.8,3.8.8,5.9s-.3,4-.8,5.9c-.5,1.9-1.3,3.7-2.3,5.4-1,1.7-2.2,3.2-3.6,4.5-1.4,1.4-3,2.5-4.7,3.5-1.7,1-3.6,1.7-5.6,2.3-2,.5-4.1.8-6.3.8ZM421.9,60.8c2.4,0,4.6-.5,6.5-1.5,1.9-1,3.4-2.4,4.7-4.2,1.3-1.8,2.2-4,2.9-6.4.7-2.5,1-5.2,1-8.1s-.3-5.6-1-8c-.7-2.4-1.6-4.5-2.9-6.3-1.3-1.8-2.9-3.1-4.7-4.1-1.9-1-4-1.5-6.5-1.5s-4.7.5-6.5,1.5c-1.9,1-3.4,2.3-4.7,4.1-1.3,1.8-2.2,3.9-2.9,6.3-.6,2.4-1,5.1-1,8s.3,5.7,1,8.1c.6,2.5,1.6,4.6,2.9,6.4,1.3,1.8,2.8,3.2,4.7,4.2,1.9,1,4,1.5,6.5,1.5Z"/>
+<path d="M479.1,21.5c-2.6,0-4.9.5-7.1,1.4-2.2.9-4,2.2-5.6,3.9-1.6,1.7-2.8,3.8-3.7,6.2s-1.3,5.1-1.3,8.1.5,5.7,1.4,8.1c1,2.4,2.3,4.4,3.9,6.1,1.7,1.7,3.6,3,5.8,3.9s4.6,1.4,7.2,1.4,3.5-.3,5-.8c1.5-.5,2.8-1.2,4-2.2v-14.9h-8v-2.5h15.2v18.7c-1.2.7-2.5,1.2-3.7,1.8-1.3.5-2.6.9-4.1,1.3-1.5.3-3.1.6-4.8.8s-3.7.3-6,.3-4.6-.3-6.7-.8-4.1-1.3-5.9-2.2c-1.8-1-3.4-2.1-4.9-3.4-1.5-1.3-2.7-2.8-3.7-4.4-1-1.6-1.8-3.4-2.4-5.2-.6-1.9-.8-3.8-.8-5.8s.3-3.9.8-5.8,1.3-3.7,2.3-5.4,2.2-3.2,3.6-4.6,3-2.6,4.8-3.6,3.7-1.8,5.8-2.3c2.1-.6,4.3-.8,6.7-.8s4.3.3,6.2.9c1.9.6,3.7,1.4,5.2,2.4s3,2.2,4.2,3.5,2.3,2.7,3.1,4.1l-3.1,2.1c-1.8-3.4-3.8-6-6-7.5-2.2-1.6-4.7-2.4-7.5-2.4Z"/>
+<g><path class="els3" d="M77.7,5.5c-7.3-.3-9.2,3.9-9.3,4.1,0,.2-.3.4-.5.4-6.9.6-9,2.4-9.5,3.7-.8,2,1.4,4.3,1.4,4.3.2.2.2.4.1.7s-.3.4-.5.4c-4.3.3-7.5,1.7-9.3,4.2-3,4.2-1.7,10.4-1,12.8,1.2,4,0,6.4-1.4,7.8.4.9,2.4,4,8.4,5.6.8-.5,3.4-1.8,6.7-1.8.4,0,.9,0,1.5.1,2.9.4,8.4,1,12.8-2.9,4.7-4.1,7.2-12.2,7.4-24.2,0-.2,0-.4.2-.5.1-.1.3-.2.5-.1,0,0,5.2.6,7.6,0,.5-.1,1.5-.5,2.3-1.4-5.4-5.8-11.2-9.8-16.1-12.6-.4-.2-.9-.5-1.4-.7Z"/>
+<path class="els2" d="M48.5,75.6c.9-.8,1.9-1.3,2.9-1.6,5.9-1.8,7.5-4.3,7.8-4.9,0-.1,0-.2,0-.2h0s0,0,.1,0c0,0,0,0,.1,0s0,0,.1,0c0,0,0,0,0,0,4.6,1.7,10.8-.3,15.6-2.3,5-2,9-1.3,10.1-1.1,5-4.6,3.4-9.7,2.8-11.1-6.8,1.1-12-2-12.3-2.2-.3-.2-.4-.5-.3-.8.6-1.6.4-3,.3-3.8-4.5,2.8-9.3,2.2-12.1,1.9-.5,0-1-.1-1.4-.1-3.6,0-6.2,1.7-6.2,1.7-.1,0-.2.1-.4.1s0,0-.2,0c-6.3-1.5-8.6-4.7-9.4-6.1-.8.5-1.5.8-1.5.8,0,0-.2,0-.3,0-16.1-2.7-20.9,12.3-21.1,12.9,0,.1-.1.2-.2.3l-.6.4c-.4,2.5-.8,9.7,7.2,14.4,6.7,4,14.2,2.9,18.3,1.8h0Z"/>
+<path class="els6" d="M93.2,21.5c-2.1.6-5.8.4-7.4.2-.3,12-2.9,20.2-7.8,24.4-.2.2-.4.3-.6.5.2.7.6,2.4,0,4.5,1.4.7,5.9,2.7,11.4,1.7.3,0,.5,0,.7.3,0,0,3.8,7-2.8,13,.4.9,2.1,3.3,7.9,4.3.9.2,1.8.3,2.6.5,6.7-1.1,15.8-8.3,11.3-26.9-2.5-10.4-7.2-18.2-12.5-24.2-.7.8-1.7,1.4-2.8,1.7h0Z"/>
+<path class="els5" d="M21.8,58.6l.9-.6c.7-1.9,6.3-16.2,22.3-13.6.8-.3,4.6-2,2.9-7.8-.8-2.6-2.2-9.3,1.1-13.9,1.9-2.6,4.9-4.2,9.1-4.7-.7-1.1-1.6-2.9-.9-4.7.9-2.4,4.3-4,10.2-4.5.6-1,2.6-3.9,7.6-4.5C64.1.1,40.9-4.1,19.8,7.7-4.5,21.4-1.8,42.8,3.8,52c4.5,7.4,14.3,7,18,6.6h0Z"/>
+<path class="els7" d="M94.4,71.7c-6.7-1.1-8.5-4.1-9-5.2-1-.2-4.7-.9-9.3,1-4.9,2-11.1,4.1-16,2.5-.4,1.2-.9,4.2,2.8,6.9,0,0,0,0,0,0,.3.3,3.2,3.3,3.8,4.6,0,0,0,0,0,0,.4.3,2.8,0,5.1-.5.2,0,.3,0,.5,0l1.4.9c17.7,3,20.2-7.6,20.6-10.4h0Z"/>
+<path class="els1" d="M72.1,82.4c-1.4.3-3,.6-4.2.6,1,1.6,2.5,3.9,3,4.8.4.8,0,3.4-.8,6,.6.8.9,1.2.9,1.2,5.9,1.2,6.5-3.4,6.5-3.4-3.7-3.9-4.8-7.5-5.1-9h-.2Z"/>
+<path class="els0" d="M57.6,80.3c3.8-.3,5-1.1,5.3-1.5-.3-.3-.5-.6-.8-.8-2.9-2.1-3.6-4.4-3.6-6.2-1.3,1.1-3.4,2.4-6.8,3.5.7,1.4.6,1.9,5.6,4.9,0,0,.1,0,.2.1h0Z"/>
+<path class="els4" d="M69.7,88.4c-.7-1.3-3.8-6.1-3.9-6.1h0s0,0,0,0c-.2-.5-1.1-1.4-1.9-2.5-.6.6-1.9,1.3-4.7,1.7,3.6,2.9,7.6,8,9.9,11,.5-2,.8-3.6.6-4h0Z"/></g>
+</svg>`;
+
   const html = `<!DOCTYPE html>
 <html lang="zh-TW"><head><meta charset="UTF-8">
 <title>ACPT 分析報告 — ${r.user_name}</title>
 <style>
-  body{font-family:'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;margin:0;padding:16px;background:#F5EEE6;color:#2C1A0E;}
-  .wrap{max-width:794px;margin:0 auto;}
-  .card{background:#fff;border-radius:14px;padding:20px 24px;margin-bottom:16px;box-shadow:0 2px 16px rgba(0,0,0,.08);page-break-inside:avoid;}
-  h1{font-size:1.3rem;color:#5C3A1E;margin:0 0 4px}
-  h2{font-size:1rem;color:#5C3A1E;margin:0 0 12px;border-bottom:2px solid #F5EEE6;padding-bottom:5px}
-  .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px 16px;margin-top:12px}
-  .info-item label{display:block;font-size:.72rem;color:#7a6052;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-  .info-item span{font-size:.95rem;font-weight:700}
-  .detect-box{background:#F5EEE6;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
-  .detect-item label{font-size:.75rem;color:#7a6052;font-weight:600;display:block}
-  .detect-item span{font-size:1.1rem;font-weight:800;color:#E65C00}
-  .raw-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:0}
-  .rs{background:#FFF8E7;border-radius:8px;padding:8px 10px;text-align:center}
-  .rs label{display:block;font-size:.68rem;color:#7a6052;font-weight:600}
-  .rs span{display:block;font-size:1rem;font-weight:800;color:#2C1A0E}
-  table{width:100%;border-collapse:collapse;font-size:0.82rem}
-  thead tr{background:#F8F2EA}
-  thead th{padding:8px 10px;text-align:left;font-weight:700;color:#7a6052;font-size:0.75rem;text-transform:uppercase;letter-spacing:.04em}
-  tbody tr{border-bottom:1px solid #F5EEE6}
-  tbody tr:hover{background:#FDFAF6}
+  *{box-sizing:border-box}
+  body{font-family:'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;margin:0;padding:0;background:#F3F6F9;color:#1A2B3C}
+  .wrap{max-width:794px;margin:0 auto;padding:20px 16px}
+  /* ── Page header ── */
+  .rpt-header{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:#fff;border-bottom:3px solid #4bb9db;margin-bottom:18px}
+  .rpt-tagline{text-align:right;font-size:.75rem;color:#666;line-height:1.5}
+  .rpt-tagline strong{display:block;font-size:.85rem;color:#1A2B3C}
+  /* ── Cards ── */
+  .card{background:#fff;border-radius:10px;padding:22px 26px;margin-bottom:14px;box-shadow:0 1px 6px rgba(0,0,0,.07);border:1px solid #E2EBF0;page-break-inside:avoid}
+  /* ── Title block ── */
+  .rpt-title{font-size:1.6rem;font-weight:800;color:#1A2B3C;margin:0 0 4px}
+  .rpt-subtitle{font-size:.88rem;color:#4bb9db;font-weight:500;margin:0 0 16px}
+  /* ── Section h2 ── */
+  h2{font-size:1rem;font-weight:800;color:#1A2B3C;margin:0 0 14px;padding-bottom:7px;border-bottom:2px solid #4bb9db;display:flex;align-items:baseline;gap:10px}
+  h2 .en{font-size:.75rem;color:#4bb9db;font-weight:400}
+  /* ── Info grid ── */
+  .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px 16px}
+  .info-item label{display:block;font-size:.68rem;color:#7a9ab0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+  .info-item span{font-size:.95rem;font-weight:700;color:#1A2B3C}
+  /* ── Detect box ── */
+  .detect-box{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;background:#EEF7FB;border-radius:8px;padding:14px 16px;margin-bottom:14px}
+  .detect-item label{font-size:.7rem;color:#4bb9db;font-weight:700;display:block;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+  .detect-item span{font-size:1.1rem;font-weight:800;color:#1A2B3C}
+  /* ── Raw stats ── */
+  .raw-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .rs{background:#EEF7FB;border-radius:7px;padding:8px 10px;text-align:center;border:1px solid #C8E8F4}
+  .rs label{display:block;font-size:.66rem;color:#4bb9db;font-weight:700;margin-bottom:3px}
+  .rs span{display:block;font-size:.98rem;font-weight:800;color:#1A2B3C}
+  /* ── T-score table ── */
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  thead tr{background:#4bb9db}
+  thead th{padding:9px 11px;text-align:left;font-weight:700;color:#fff;font-size:.73rem;text-transform:uppercase;letter-spacing:.04em}
+  tbody tr{border-bottom:1px solid #E2EBF0}
+  tbody tr:hover{background:#EEF7FB}
+  /* ── Footer ── */
+  .rpt-footer{text-align:center;padding:20px 0 8px;border-top:1px solid #E2EBF0;margin-top:6px;color:#aaa;font-size:.72rem}
+  /* ── Print button ── */
+  .btn-print{display:inline-block;padding:10px 26px;background:#4bb9db;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.92rem;cursor:pointer;margin-bottom:16px}
+  /* ── Print ── */
   @media print{
-    @page{size:A4;margin:12mm 14mm}
-    body{background:#fff;padding:0;font-size:11px}
-    .wrap{max-width:100%}
-    .card{box-shadow:none;border:1px solid #eee;padding:14px 16px;margin-bottom:10px;page-break-inside:avoid}
+    @page{size:A4;margin:10mm 13mm}
+    body{background:#fff}
+    .wrap{padding:0;max-width:100%}
+    .rpt-header{margin-bottom:12px}
+    .card{box-shadow:none;border:1px solid #dde;padding:14px 18px;margin-bottom:10px;page-break-inside:avoid}
     .no-print{display:none}
     .raw-stats{grid-template-columns:repeat(5,1fr)}
   }
-  .btn-print{display:inline-block;padding:10px 24px;background:#E65C00;color:#fff;border:none;border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer;margin-bottom:16px}
   ${CHART_CSS}
 </style></head><body>
 <div class="wrap">
+
+  <div class="rpt-header">
+    <div style="width:180px;flex-shrink:0">${EEG_SVG}</div>
+    <div class="rpt-tagline"><strong>ACPT 動物持續表現測驗</strong>Animal Continuous Performance Test</div>
+  </div>
+
   <button class="btn-print no-print" onclick="window.print()">🖨 列印 / 儲存 PDF</button>
+
   <div class="card">
-    <h1>🐾 ACPT 動物持續表現測驗 — 分析報告</h1>
+    <div class="rpt-title">注意力評估報告</div>
+    <div class="rpt-subtitle">Animal Continuous Performance Test — Assessment Report</div>
     <div class="info-grid">
       <div class="info-item"><label>姓名</label><span>${r.user_name}</span></div>
       <div class="info-item"><label>年齡</label><span>${r.age} 歲（${ageGroup}）</span></div>
@@ -1309,38 +1356,40 @@ function showACPTReport(r) {
   </div>
 
   <div class="card">
-    <h2>行為測量結果</h2>
+    <h2>行為測量結果 <span class="en">Behavioral Metrics</span></h2>
     <div class="detect-box">
-      <div class="detect-item"><label>辨識力（Detectability）</label><span>${detectStr}</span></div>
-      <div class="detect-item"><label>遺漏（Omissions）</label><span>${(m.omissions*100).toFixed(1)}%（${m.nMiss}/${m.nTarg}）</span></div>
-      <div class="detect-item"><label>衝動（Commissions）</label><span>${(m.commissions*100).toFixed(1)}%（${m.nFA}/${m.nNtarg}）</span></div>
-      <div class="detect-item"><label>堅持（Perseverations）</label><span>${(m.persevRate*100).toFixed(1)}%（${m.nPersev}/${m.nAllHit}）</span></div>
+      <div class="detect-item"><label>Detectability</label><span>${detectStr}</span></div>
+      <div class="detect-item"><label>Omissions 遺漏</label><span>${(m.omissions*100).toFixed(1)}%（${m.nMiss}/${m.nTarg}）</span></div>
+      <div class="detect-item"><label>Commissions 衝動</label><span>${(m.commissions*100).toFixed(1)}%（${m.nFA}/${m.nNtarg}）</span></div>
+      <div class="detect-item"><label>Perseverations 堅持</label><span>${(m.persevRate*100).toFixed(1)}%（${m.nPersev}/${m.nAllHit}）</span></div>
     </div>
     <div class="raw-stats">
-      <div class="rs"><label>HRT (ms)</label><span>${m.HRT != null ? m.HRT.toFixed(2) : '—'}</span></div>
-      <div class="rs"><label>HRT SD (ms)</label><span>${m.HRTSD != null ? m.HRTSD.toFixed(2) : '—'}</span></div>
-      <div class="rs"><label>Variability (ms)</label><span>${m.Variability != null ? m.Variability.toFixed(2) : '—'}</span></div>
-      <div class="rs"><label>Block Change (ms)</label><span>${m.BlockChange.toFixed(2)}</span></div>
-      <div class="rs"><label>ISI Change (ms)</label><span>${m.ISIChange.toFixed(2)}</span></div>
+      <div class="rs"><label>HRT (ms)</label><span>${m.HRT != null ? m.HRT.toFixed(1) : '—'}</span></div>
+      <div class="rs"><label>HRT SD (ms)</label><span>${m.HRTSD != null ? m.HRTSD.toFixed(1) : '—'}</span></div>
+      <div class="rs"><label>Variability (ms)</label><span>${m.Variability != null ? m.Variability.toFixed(1) : '—'}</span></div>
+      <div class="rs"><label>Block Change (ms)</label><span>${m.BlockChange.toFixed(1)}</span></div>
+      <div class="rs"><label>ISI Change (ms)</label><span>${m.ISIChange.toFixed(1)}</span></div>
     </div>
   </div>
 
   <div class="card">
-    <h2>T 分數與評估建議（年齡組：${ageGroup}）</h2>
+    <h2>T 分數與評估建議 <span class="en">T-Scores &amp; Recommendations（${ageGroup}）</span></h2>
     <table>
       <thead><tr>
         <th>指標</th><th>原始分數</th><th>原始 T 分</th><th>回歸後 T 分</th><th>評估與建議</th>
       </tr></thead>
       <tbody>${metricRowsHTML}</tbody>
     </table>
-    <p style="margin-top:14px;font-size:.75rem;color:#aaa">T 分數平均 = 50，標準差 = 10。回歸後 T 分以常模進行非線性校正。偏高表示注意力需求增加；HRT 偏低表示反應過快。</p>
+    <p style="margin-top:12px;font-size:.73rem;color:#aaa">T 分數平均 = 50，標準差 = 10；回歸後 T 分以常模進行非線性校正，限制於 1–99 之間。偏高表示注意力需求增加；HRT 偏低表示反應過快。</p>
   </div>
 
   ${chartsHTML}
 
-  <div class="card" style="font-size:.78rem;color:#aaa">
-    <p>本報告依據 Animal Continuous Performance Test (ACPT) 常模資料自動產生，僅供臨床參考使用。</p>
+  <div class="rpt-footer">
+    <div style="display:inline-block;width:120px;margin-bottom:8px">${EEG_SVG}</div><br>
+    本報告依據 Animal Continuous Performance Test (ACPT) 常模資料自動產生，僅供臨床參考使用。
   </div>
+
 </div></body></html>`;
 
   const w = window.open('', '_blank', 'width=960,height=800,scrollbars=yes');
