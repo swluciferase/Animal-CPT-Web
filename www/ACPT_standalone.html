@@ -450,6 +450,7 @@ kbd {
     <div class="results-actions">
       <button id="btn-export" class="btn-primary">📥 下載 Excel 報告</button>
       <button id="btn-export-csv" class="btn-secondary">📄 下載 CSV 原始資料</button>
+      <button id="btn-report" class="btn-secondary">📊 分析報告</button>
       <button id="btn-new" class="btn-secondary">重新測驗</button>
     </div>
     <p class="timing-note" id="timing-note"></p>
@@ -1546,6 +1547,7 @@ function renderResults(r) {
 
   $('btn-export').onclick     = () => promptExcelPassword(r);
   $('btn-export-csv').onclick = () => exportLegacyCSV(r);
+  $('btn-report').onclick     = () => showACPTReport(r);
   $('btn-new').onclick        = () => location.reload();
 }
 
@@ -1724,6 +1726,347 @@ function exportExcel(r) {
 //                     猴子=6→7, 獅子=7→8, 羊=8→9, 蛇=9→10, 豬=10→11, 貓=11→0,
 //                     雞=12→12, 青蛙=13→13, 鴨子=14→14, 麻雀=15→15
 // ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// ACPT Behavior Analysis + T-score Report
+// ─────────────────────────────────────────────
+
+function erfApprox(x) {
+  const sign = x < 0 ? -1 : 1;
+  x = Math.abs(x);
+  const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+  const t2 = 1.0 / (1.0 + p * x);
+  const y = 1 - (((((a5*t2+a4)*t2+a3)*t2+a2)*t2+a1)*t2)*Math.exp(-x*x);
+  return sign * y;
+}
+function normCdf(z) { return 0.5*(1+erfApprox(z/Math.SQRT2)); }
+function arrMean(a) { return a.length ? a.reduce((s,v)=>s+v,0)/a.length : NaN; }
+function arrStdPop(a) {  // population std (ddof=0), matches numpy default
+  if (a.length < 1) return NaN;
+  const m = arrMean(a);
+  return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length);
+}
+
+function getAgeGroup(age) {
+  if (age <= 5) return '4-5';
+  if (age <= 7) return '6-7';
+  if (age <= 9) return '8-9';
+  if (age <= 11) return '10-11';
+  if (age <= 13) return '12-13';
+  if (age <= 15) return '14-15';
+  if (age <= 17) return '16-17';
+  return '18-99';
+}
+
+const ACPT_NORMS = {
+  '4-5':  {omissions:[0.155,0.062],commissions:[0.151,0.078],HRT:[520,98], HRTSD:[89,32], Variability:[84,36], BlockChange:[-24,10],ISIChange:[-7,8]},
+  '6-7':  {omissions:[0.131,0.058],commissions:[0.127,0.072],HRT:[495,91], HRTSD:[82,29], Variability:[77,32], BlockChange:[-21,9], ISIChange:[-6,7]},
+  '8-9':  {omissions:[0.092,0.055],commissions:[0.09,0.072], HRT:[441,87], HRTSD:[69,27], Variability:[68,31], BlockChange:[-18,8], ISIChange:[-5,7]},
+  '10-11':{omissions:[0.076,0.043],commissions:[0.072,0.063],HRT:[425,79], HRTSD:[63,22], Variability:[60,28], BlockChange:[-16,7], ISIChange:[-4,6]},
+  '12-13':{omissions:[0.063,0.039],commissions:[0.065,0.052],HRT:[405,73], HRTSD:[59,20], Variability:[54,25], BlockChange:[-15,6], ISIChange:[-3,6]},
+  '14-15':{omissions:[0.048,0.030],commissions:[0.058,0.051],HRT:[388,70], HRTSD:[56,18], Variability:[50,23], BlockChange:[-13,6], ISIChange:[-2,5]},
+  '16-17':{omissions:[0.041,0.026],commissions:[0.052,0.048],HRT:[382,65], HRTSD:[54,17], Variability:[47,22], BlockChange:[-12,5], ISIChange:[-2,5]},
+  '18-99':{omissions:[0.038,0.023],commissions:[0.049,0.046],HRT:[374,61], HRTSD:[53,16], Variability:[45,21], BlockChange:[-11,5], ISIChange:[-2,5]},
+};
+
+function acptRegress(key, X) {
+  if (X === undefined || !isFinite(X)) return undefined;
+  switch(key) {
+    case 'omissions':   return -0.0089*X*X + 1.5198*X + 7.8197;
+    case 'commissions': return  0.0006*X*X + 0.3351*X + 21.389;
+    case 'HRT':         return -0.0147*X*X + 2.5204*X - 43.465;
+    case 'HRTSD':       return -0.0017*X*X + 0.6369*X + 8.4443;
+    case 'Variability': return  0.1249*X*X - 6.6492*X + 126.74;
+    case 'BlockChange': return -0.0005*X*X + 0.3926*X + 20.722;
+    case 'ISIChange':   return  0.000001*X*X + 0.1207*X + 37.44;
+    default: return undefined;
+  }
+}
+
+function computeACPTMetrics(r) {
+  const BDO = [1.0, 1.5, 2.0, 3.0, 4.0];
+  const main = r.trials.filter(t => t.trial.phase === 'main' && t.stimulus_onset_ms != null);
+  if (main.length < 60) return null;
+  const isChild = r.is_child;
+
+  // Assign block_dur (onset-to-onset mapped to nearest canonical value)
+  const stim = main.map((t, i) => {
+    let bd;
+    if (i < main.length - 1) {
+      const sp = (main[i+1].stimulus_onset_ms - t.stimulus_onset_ms) / 1000.0;
+      bd = BDO.reduce((b,v) => Math.abs(v-sp) < Math.abs(b-sp) ? v : b);
+    } else {
+      bd = null;
+    }
+    return { is_target: t.trial.is_target, time: t.stimulus_onset_ms/1000.0,
+             rt: t.reaction_time_ms != null ? t.reaction_time_ms/1000.0 : null,
+             rtype: t.response_type, bd };
+  });
+  if (stim.length > 1) stim[stim.length-1].bd = stim[stim.length-2].bd;
+  else if (stim.length === 1) stim[0].bd = isChild ? 1.5 : 1.0;
+
+  const nTarg   = stim.filter(s => s.is_target).length;
+  const nNtarg  = stim.filter(s => !s.is_target).length;
+  const nMiss   = stim.filter(s => s.rtype === 'miss').length;
+  const nFA     = stim.filter(s => s.rtype === 'false_alarm').length;
+  const nPersev = stim.filter(s => s.rtype === 'too_fast').length;
+  const nAllHit = stim.filter(s => s.rt !== null).length;
+  const hitRTs  = stim.filter(s => s.rtype === 'hit').map(s => s.rt);
+
+  const omissions   = nTarg  > 0 ? nMiss / nTarg  : 0;
+  const commissions = nNtarg > 0 ? nFA   / nNtarg  : 0;
+  const persevRate  = nAllHit > 0 ? nPersev / nAllHit : 0;
+
+  const HRT    = arrMean(hitRTs) * 1000;
+  const HRTSD  = arrStdPop(hitRTs) * 1000;
+
+  // Detectability (as in ACPT.py: -1*(normCdf(hitrate) - normCdf(farate)))
+  const Zhit   = normCdf(nTarg  > 0 ? (nTarg-nMiss)/nTarg : 0);
+  const Zfalse = normCdf(nNtarg > 0 ? nFA/nNtarg : 0);
+  const detectability = -(Zhit - Zfalse);
+
+  // Groups of n_group for HRT_mean_block (BlockChange)
+  const nGroup  = isChild ? 40 : 60;
+  const meanBlocks = [];
+  for (let i = 0; i < stim.length; i += nGroup) {
+    const rts = stim.slice(i, i+nGroup).filter(s => s.rtype==='hit').map(s => s.rt*1000);
+    meanBlocks.push(isNaN(arrMean(rts)) ? 0 : arrMean(rts));
+  }
+  const BlockChange = meanBlocks.length > 1
+    ? (meanBlocks[meanBlocks.length-1] - meanBlocks[0]) / (meanBlocks.length - 1) : 0;
+
+  // Groups of 20 for HRT_SD_block (Variability)
+  const sdBlocks = [];
+  for (let i = 0; i < stim.length; i += 20) {
+    const rts = stim.slice(i, i+20).filter(s => s.rtype==='hit').map(s => s.rt*1000);
+    const sd = arrStdPop(rts);
+    sdBlocks.push(isNaN(sd) ? 0 : sd);
+  }
+  const Variability = arrStdPop(sdBlocks);
+
+  // ISI groups
+  let isiGroups;
+  if (isChild) {
+    isiGroups = [stim.filter(s=>s.bd===1.5), stim.filter(s=>s.bd===3.0)];
+  } else {
+    isiGroups = [stim.filter(s=>s.bd===1.0), stim.filter(s=>s.bd===2.0), stim.filter(s=>s.bd===4.0)];
+  }
+  const isiMeans = isiGroups.map(g => {
+    const rts = g.filter(s=>s.rtype==='hit').map(s=>s.rt*1000);
+    return isNaN(arrMean(rts)) ? 0 : arrMean(rts);
+  });
+  const ISIChange = isiMeans.length > 1
+    ? (isiMeans[isiMeans.length-1] - isiMeans[0]) / (isiMeans.length-1) : 0;
+
+  return {
+    nTarg, nNtarg, nMiss, nFA, nPersev, nAllHit,
+    omissions, commissions, persevRate,
+    HRT: isNaN(HRT) ? null : HRT,
+    HRTSD: isNaN(HRTSD) ? null : HRTSD,
+    Variability: isNaN(Variability) ? null : Variability,
+    BlockChange, ISIChange,
+    Zhit, Zfalse, detectability,
+    meanBlocks, isiMeans,
+  };
+}
+
+function acptAdvice(key, tFinal) {
+  if (tFinal === undefined || !isFinite(tFinal)) return '—';
+  const t = tFinal;
+  const domain = {omissions:'不專心程度',commissions:'衝動性',HRT:'反應速度',
+                  HRTSD:'反應一致性',Variability:'注意力穩定性',BlockChange:'持續專注力',ISIChange:'警覺性'}[key]||'—';
+  const rec = {
+    fastHigh:'速度過快、可能影響穩定性；加入節奏控制與反應抑制練習，如節拍器配合慢速點擊、延遲回應遊戲。',
+    speedOk:'維持目前反應速度；可加入精細動作與注意轉移練習（如視覺搜尋、目標切換）。',
+    slow:'反應偏慢；先做警覺提升與熱身（如眼手協調、視聽雙模刺激），再進行定時反應任務，逐步縮短反應時間。',
+    okFocus:'可加入短時專注維持訓練：如 2–3 分鐘的目標偵測、逐字閱讀標記。',
+    okInhibit:'維持；可輕量融入抑制控制：如 Go/No-Go、等待 3 秒再點擊的節奏練習。',
+    okConsistency:'可加上節拍器下的等節奏反應以維持一致性。',
+    okStability:'維持當下穩定度；可加入分段任務以自我監測波動。',
+    okSustain:'維持；長任務時安排短暫微休息（如 2 分鐘/每 10 分鐘）。',
+    okAlert:'維持；可做不同間隔的反應任務以保持節奏適應。',
+    mildOmit:'採用視覺提示與任務分段，並運用短時集中的「番茄鐘」專注訓練。',
+    mildComm:'加入抑制練習（No-Go/Stop-Signal）、回應前口頭自我指令：「看清楚再按」。',
+    mildHRTSD:'在固定節拍下做持續反應，增加回合數並記錄波動；失焦即暫停整理再續。',
+    mildVar:'先縮短單回合時長（如 2–3 分鐘）再逐步拉長；在區塊間做自評穩定度。',
+    mildBlock:'任務分段並在每段前設定微目標；加入自我提醒卡避免後段疲乏。',
+    mildISI:'做不同 ISI 的隨機化訓練，練習節奏轉換與等待控制。',
+    highOmit:'先降低刺激複雜度並增加外顯提示；採短－休－短循環逐步拉長專注時間。',
+    highComm:'強化抑制與延遲回應；設定明確規則與回饋，必要時加入視覺倒數後才允許反應。',
+    highHRTSD:'以節拍器/計時器做固定節奏反應；每回合後回顧錯誤模式，調整節奏與呼吸。',
+    highVar:'縮短任務、提升回饋頻率；以多段任務+即時自評方式穩定注意波動。',
+    highBlock:'改為更短的 block 並在每段起點做提神程序（深呼吸/伸展），逐段觀察表現漂移。',
+    highISI:'專練不同 ISI 的等待與切換，先固定序列再轉隨機，強化警覺維持。',
+  };
+  if (key === 'HRT') {
+    if (t < 40) return `${domain}：顯著過快。建議：${rec.fastHigh}`;
+    if (t <= 44) return `${domain}：輕微過快。建議：${rec.fastHigh}`;
+    if (t <= 54) return `${domain}：正常範圍。建議：${rec.speedOk}`;
+    if (t <= 59) return `${domain}：輕微過慢。建議：${rec.slow}`;
+    if (t <= 69) return `${domain}：過慢。建議：${rec.slow}`;
+    return `${domain}：顯著過慢。建議：${rec.slow}`;
+  }
+  const e = (label, kind) => {
+    const rMap = {omissions:{ok:rec.okFocus,mild:rec.mildOmit,high:rec.highOmit},
+                  commissions:{ok:rec.okInhibit,mild:rec.mildComm,high:rec.highComm},
+                  HRTSD:{ok:rec.okConsistency,mild:rec.mildHRTSD,high:rec.highHRTSD},
+                  Variability:{ok:rec.okStability,mild:rec.mildVar,high:rec.highVar},
+                  BlockChange:{ok:rec.okSustain,mild:rec.mildBlock,high:rec.highBlock},
+                  ISIChange:{ok:rec.okAlert,mild:rec.mildISI,high:rec.highISI}};
+    return `${domain}：${label}。建議：${(rMap[key]||{})[kind]||'—'}`;
+  };
+  if (t < 45) return e('偏低','ok');
+  if (t <= 54) return e('正常範圍','ok');
+  if (t <= 59) return e('輕微過高','mild');
+  if (t <= 69) return e('過高','mild');
+  return e('顯著過高','high');
+}
+
+function tInterpretLabel(t) {
+  if (!isFinite(t)) return { label: '—', color: '#888' };
+  if (t < 40)  return { label: '顯著偏低', color: '#2196F3' };
+  if (t <= 44) return { label: '偏低', color: '#64B5F6' };
+  if (t <= 54) return { label: '正常範圍', color: '#43A047' };
+  if (t <= 59) return { label: '輕微偏高', color: '#FFA726' };
+  if (t <= 69) return { label: '偏高', color: '#EF6C00' };
+  return { label: '顯著偏高', color: '#C62828' };
+}
+
+function showACPTReport(r) {
+  const m = computeACPTMetrics(r);
+  if (!m) { alert('試次數量不足，無法產生分析報告。'); return; }
+
+  const ageGroup = getAgeGroup(r.age);
+  const norm = ACPT_NORMS[ageGroup];
+
+  const metricDefs = [
+    { key:'omissions',   label:'遺漏率 (Omissions)',   unit:'', fmt: v => (v*100).toFixed(1)+'%', raw: m.omissions },
+    { key:'commissions', label:'衝動率 (Commissions)',  unit:'', fmt: v => (v*100).toFixed(1)+'%', raw: m.commissions },
+    { key:'HRT',         label:'命中反應時間 (HRT)',    unit:'ms', fmt: v => v.toFixed(2)+'ms', raw: m.HRT },
+    { key:'HRTSD',       label:'HRT 標準差 (HRT SD)',  unit:'ms', fmt: v => v.toFixed(2)+'ms', raw: m.HRTSD },
+    { key:'Variability', label:'變異性 (Variability)',  unit:'ms', fmt: v => v.toFixed(2)+'ms', raw: m.Variability },
+    { key:'BlockChange', label:'區塊變化 (Block Change)',unit:'ms', fmt: v => v.toFixed(2)+'ms', raw: m.BlockChange },
+    { key:'ISIChange',   label:'ISI 變化 (ISI Change)', unit:'ms', fmt: v => v.toFixed(2)+'ms', raw: m.ISIChange },
+  ];
+
+  // Compute T-scores
+  const tRows = metricDefs.map(({ key, label, fmt, raw }) => {
+    const n = norm[key];
+    if (raw == null || !isFinite(raw) || !n) return { key, label, rawStr:'—', tRaw:null, tFinal:null };
+    const z = (raw - n[0]) / n[1];
+    const tRaw = 50 + 10 * z;
+    const tFinal = acptRegress(key, tRaw);
+    const tF = tFinal != null ? Math.round(tFinal) : null;
+    return { key, label, rawStr: fmt(raw), tRaw: tRaw.toFixed(1), tFinal: tF };
+  });
+
+  const vr = r.is_child ? '兒童版（4–7歲）' : '成人版（8歲+）';
+  const gender = { M:'男', F:'女', O:'其他' }[userData.gender] || userData.gender || '';
+  const dateStr = r.test_date || '';
+
+  // Build HTML for the T-score bar (visual)
+  function tBar(t) {
+    if (!isFinite(t)) return '';
+    const pct = Math.max(0, Math.min(100, (t - 20) / 60 * 100));
+    const col = tInterpretLabel(t).color;
+    return `<div style="background:#eee;border-radius:4px;height:10px;width:100%;margin-top:4px">
+      <div style="width:${pct.toFixed(1)}%;background:${col};height:10px;border-radius:4px"></div></div>`;
+  }
+
+  const metricRowsHTML = tRows.map(row => {
+    const interp = tInterpretLabel(row.tFinal);
+    const advice = acptAdvice(row.key, row.tFinal);
+    return `<tr>
+      <td style="padding:10px 12px;font-weight:600;white-space:nowrap">${row.label}</td>
+      <td style="padding:10px 12px;text-align:center">${row.rawStr}</td>
+      <td style="padding:10px 12px;text-align:center">${row.tRaw ?? '—'}</td>
+      <td style="padding:10px 12px;text-align:center;font-weight:700;color:${interp.color}">${row.tFinal ?? '—'}<br><small style="font-weight:400">${interp.label}</small>
+        ${row.tFinal != null ? tBar(row.tFinal) : ''}</td>
+      <td style="padding:10px 12px;font-size:0.82rem;line-height:1.5;color:#444">${advice}</td>
+    </tr>`;
+  }).join('');
+
+  const detectStr = `${m.detectability.toFixed(2)} (${m.Zfalse.toFixed(2)}, ${m.Zhit.toFixed(2)})`;
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-TW"><head><meta charset="UTF-8">
+<title>ACPT 分析報告 — ${r.user_name}</title>
+<style>
+  body{font-family:'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;margin:0;padding:24px;background:#F5EEE6;color:#2C1A0E;}
+  .wrap{max-width:900px;margin:0 auto;}
+  .card{background:#fff;border-radius:14px;padding:28px 32px;margin-bottom:20px;box-shadow:0 2px 16px rgba(0,0,0,.08);}
+  h1{font-size:1.4rem;color:#5C3A1E;margin:0 0 4px}
+  h2{font-size:1.05rem;color:#5C3A1E;margin:0 0 14px;border-bottom:2px solid #F5EEE6;padding-bottom:6px}
+  .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px 20px;margin-top:14px}
+  .info-item label{display:block;font-size:.75rem;color:#7a6052;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .info-item span{font-size:1rem;font-weight:700}
+  .detect-box{background:#F5EEE6;border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;gap:32px;flex-wrap:wrap}
+  .detect-item label{font-size:.78rem;color:#7a6052;font-weight:600;display:block}
+  .detect-item span{font-size:1.25rem;font-weight:800;color:#E65C00}
+  .raw-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:0}
+  .rs{background:#FFF8E7;border-radius:8px;padding:10px 12px;text-align:center}
+  .rs label{display:block;font-size:.72rem;color:#7a6052;font-weight:600}
+  .rs span{display:block;font-size:1.1rem;font-weight:800;color:#2C1A0E}
+  table{width:100%;border-collapse:collapse;font-size:0.88rem}
+  thead tr{background:#F8F2EA}
+  thead th{padding:10px 12px;text-align:left;font-weight:700;color:#7a6052;font-size:0.78rem;text-transform:uppercase;letter-spacing:.04em}
+  tbody tr{border-bottom:1px solid #F5EEE6}
+  tbody tr:hover{background:#FDFAF6}
+  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #eee}.no-print{display:none}}
+  .btn-print{display:inline-block;padding:10px 24px;background:#E65C00;color:#fff;border:none;border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer;margin-bottom:16px}
+</style></head><body>
+<div class="wrap">
+  <button class="btn-print no-print" onclick="window.print()">🖨 列印 / 儲存 PDF</button>
+  <div class="card">
+    <h1>🐾 ACPT 動物持續表現測驗 — 分析報告</h1>
+    <div class="info-grid">
+      <div class="info-item"><label>姓名</label><span>${r.user_name}</span></div>
+      <div class="info-item"><label>年齡</label><span>${r.age} 歲（${ageGroup}）</span></div>
+      <div class="info-item"><label>性別</label><span>${gender}</span></div>
+      <div class="info-item"><label>測驗版本</label><span>${vr}</span></div>
+      <div class="info-item"><label>施測日期</label><span>${dateStr}</span></div>
+      <div class="info-item"><label>試次總數</label><span>${r.main_trials || m.nTarg + m.nNtarg}</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>行為測量結果</h2>
+    <div class="detect-box">
+      <div class="detect-item"><label>辨識力（Detectability）</label><span>${detectStr}</span></div>
+      <div class="detect-item"><label>遺漏（Omissions）</label><span>${(m.omissions*100).toFixed(1)}%（${m.nMiss}/${m.nTarg}）</span></div>
+      <div class="detect-item"><label>衝動（Commissions）</label><span>${(m.commissions*100).toFixed(1)}%（${m.nFA}/${m.nNtarg}）</span></div>
+      <div class="detect-item"><label>堅持（Perseverations）</label><span>${(m.persevRate*100).toFixed(1)}%（${m.nPersev}/${m.nAllHit}）</span></div>
+    </div>
+    <div class="raw-stats">
+      <div class="rs"><label>HRT (ms)</label><span>${m.HRT != null ? m.HRT.toFixed(2) : '—'}</span></div>
+      <div class="rs"><label>HRT SD (ms)</label><span>${m.HRTSD != null ? m.HRTSD.toFixed(2) : '—'}</span></div>
+      <div class="rs"><label>Variability (ms)</label><span>${m.Variability != null ? m.Variability.toFixed(2) : '—'}</span></div>
+      <div class="rs"><label>Block Change (ms)</label><span>${m.BlockChange.toFixed(2)}</span></div>
+      <div class="rs"><label>ISI Change (ms)</label><span>${m.ISIChange.toFixed(2)}</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>T 分數與評估建議（年齡組：${ageGroup}）</h2>
+    <table>
+      <thead><tr>
+        <th>指標</th><th>原始分數</th><th>原始 T 分</th><th>回歸後 T 分</th><th>評估與建議</th>
+      </tr></thead>
+      <tbody>${metricRowsHTML}</tbody>
+    </table>
+    <p style="margin-top:14px;font-size:.75rem;color:#aaa">T 分數平均 = 50，標準差 = 10。回歸後 T 分以常模進行非線性校正。偏高表示注意力需求增加；HRT 偏低表示反應過快。</p>
+  </div>
+
+  <div class="card" style="font-size:.78rem;color:#aaa">
+    <p>本報告依據 Animal Continuous Performance Test (ACPT) 常模資料自動產生，僅供臨床參考使用。</p>
+  </div>
+</div></body></html>`;
+
+  const w = window.open('', '_blank', 'width=960,height=800,scrollbars=yes');
+  if (w) { w.document.write(html); w.document.close(); }
+  else alert('請允許此頁面開啟新視窗以顯示報告。');
+}
+
 function exportLegacyCSV(r) {
   // Build timestamp: YYYY_MM_D_HHmmss (month zero-padded, day/hour not padded)
   const now = new Date();

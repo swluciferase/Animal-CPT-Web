@@ -134,6 +134,7 @@ html_body = """
     <div class="results-actions">
       <button id="btn-export" class="btn-primary">📥 下載 Excel 報告</button>
       <button id="btn-export-csv" class="btn-secondary">📄 下載 CSV 原始資料</button>
+      <button id="btn-report" class="btn-secondary">📊 分析報告</button>
       <button id="btn-new" class="btn-secondary">重新測驗</button>
     </div>
     <p class="timing-note" id="timing-note"></p>
