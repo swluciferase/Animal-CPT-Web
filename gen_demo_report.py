@@ -42,6 +42,7 @@ tbody tr:hover{background:#EEF7FB}
 .ct{width:100%;border-collapse:collapse;font-size:.7rem;margin-top:8px}
 .ct th{background:#4bb9db;color:#fff;padding:4px 6px;text-align:center;font-weight:700}
 .ct td{padding:4px 6px;text-align:center;border-top:1px solid #C8E8F4}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 @media print{
   @page{size:A4;margin:10mm 13mm}
   body{background:#fff}

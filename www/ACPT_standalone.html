@@ -380,7 +380,9 @@ kbd {
         <label for="inp-note" id="label-note">備註（可留空）</label>
         <input id="inp-note" type="text" placeholder="例：施測地點、特殊情況等">
       </div>
-      <button type="submit" class="btn-primary" id="btn-submit">開始準備 →</button>
+      <button type="submit" class="btn-primary" id="btn-submit">進入測驗 →</button>
+      <button type="button" id="btn-load-csv" class="btn-secondary" style="width:100%;margin-top:8px;">📂 讀取 CSV 產生報告</button>
+      <input type="file" id="csv-file-input" accept=".csv" style="display:none">
     </form>
   </div>
 </section>
@@ -957,7 +959,16 @@ const LANG = {
     labelGender: '性別', labelNote: '備註（可留空）',
     phName: '請輸入姓名', phPid: '例：P001', phAge: '例：8', phNote: '例：施測地點、特殊情況等',
     optMale: '男', optFemale: '女', optOther: '其他',
-    btnSubmit: '開始準備 →',
+    btnSubmit: '進入測驗 →',
+    btnLoadCSV: '📂 讀取 CSV 產生報告',
+    csvModalTitle: '讀取 CSV 報告',
+    csvModalDesc: '請補充以下資訊以產生分析報告',
+    csvModalAge: '年齡（歲）*', csvModalPid: '受試者編號（可選）',
+    csvModalOk: '產生報告', csvModalCancel: '取消',
+    csvModalAgeErr: '請輸入有效年齡（4–99）',
+    csvModalParseErr: '解析失敗：', csvModalTooFew: '試次數量不足（最少需 60 筆）',
+    csvVerChild: '兒童版（4–7歲）', csvVerAdult: '成人版（8歲+）',
+    csvFieldName: '姓名', csvFieldVersion: '施測版本', csvFieldDate: '測驗日期',
     instrTitle: '測驗說明',
     demoLabelNt: '🎯 看到這隻動物時 <strong>不要</strong> 按鍵：',
     demoNameNt: '貓 (Cat) — 非目標',
@@ -1008,7 +1019,16 @@ const LANG = {
     labelGender: 'Gender', labelNote: 'Notes (optional)',
     phName: 'Enter name', phPid: 'e.g. P001', phAge: 'e.g. 8', phNote: 'e.g. location, notes',
     optMale: 'Male', optFemale: 'Female', optOther: 'Other',
-    btnSubmit: 'Proceed →',
+    btnSubmit: 'Start Test →',
+    btnLoadCSV: '📂 Load CSV Report',
+    csvModalTitle: 'Load CSV Report',
+    csvModalDesc: 'Please fill in the details below to generate the report',
+    csvModalAge: 'Age (years) *', csvModalPid: 'Participant ID (optional)',
+    csvModalOk: 'Generate Report', csvModalCancel: 'Cancel',
+    csvModalAgeErr: 'Please enter a valid age (4–99)',
+    csvModalParseErr: 'Parse error: ', csvModalTooFew: 'Not enough trials (min. 60 required)',
+    csvVerChild: 'Child (4–7 yrs)', csvVerAdult: 'Adult (8+ yrs)',
+    csvFieldName: 'Name', csvFieldVersion: 'Version', csvFieldDate: 'Date',
     instrTitle: 'Instructions',
     demoLabelNt: '🎯 Do <strong>NOT</strong> press when you see this animal:',
     demoNameNt: 'Cat — Non-Target',
@@ -1081,6 +1101,7 @@ function applyLang() {
   set('opt-female', 'textContent', L.optFemale);
   set('opt-other', 'textContent', L.optOther);
   set('btn-submit', 'textContent', L.btnSubmit);
+  set('btn-load-csv', 'textContent', L.btnLoadCSV);
   // Instructions
   set('instr-title', 'textContent', L.instrTitle);
   setHTML('demo-label-nt', L.demoLabelNt);
@@ -1119,6 +1140,22 @@ let userData = {};
 const $ = id => document.getElementById(id);
 
 $('btn-lang').addEventListener('click', toggleLang);
+$('btn-load-csv').addEventListener('click', function() { $('csv-file-input').click(); });
+$('csv-file-input').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var meta = peekCSVMeta(ev.target.result);
+      showCSVMetaModal(meta, ev.target.result);
+    } catch(err) {
+      alert((curLang === 'zh' ? '無法解析 CSV 檔案：' : 'Cannot parse CSV: ') + err.message);
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file, 'utf-8');
+});
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1579,6 +1616,10 @@ function endTask() {
 
   task.set_timing_notes(buildTimingNotes());
   const results = JSON.parse(task.get_results_json());
+  const _now = new Date();
+  results.test_time = _now.getHours().toString().padStart(2,'0') + ':' +
+                      _now.getMinutes().toString().padStart(2,'0') + ':' +
+                      _now.getSeconds().toString().padStart(2,'0');
 
   saveToLocalStorage(results);
   renderResults(results);
@@ -1870,6 +1911,158 @@ function exportExcel(r) {
 //                     猴子=6→7, 獅子=7→8, 羊=8→9, 蛇=9→10, 豬=10→11, 貓=11→0,
 //                     雞=12→12, 青蛙=13→13, 鴨子=14→14, 麻雀=15→15
 // ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// CSV import
+// ─────────────────────────────────────────────
+function peekCSVMeta(text) {
+  var lines = text.trim().split(/\r?\n/).map(function(l){ return l.split(','); });
+  if (lines.length < 4) throw new Error('File too short');
+  var name   = (lines[1][0] || '').trim();
+  var gender = (lines[1][1] || '').trim();
+  var stamp  = (lines[1][3] || '').trim();
+  var mod    = (lines[1][4] || '').trim();
+  var isChild = mod.toLowerCase().includes('kid');
+  var sp = stamp.split('_');
+  var testDate = sp.length >= 3
+    ? sp[0] + '-' + sp[1] + '-' + sp[2].padStart(2,'0')
+    : new Date().toISOString().split('T')[0];
+  var testTime = '';
+  if (sp.length >= 4 && sp[3].length >= 6) {
+    var ts = sp[3];
+    testTime = ts.slice(0,2) + ':' + ts.slice(2,4) + ':' + ts.slice(4,6);
+  }
+  return { name, gender, stamp, testDate, testTime, isChild, mod };
+}
+
+function showCSVMetaModal(meta, rawText) {
+  var L = LANG[curLang];
+  var zh = curLang === 'zh';
+  var versionLabel = meta.isChild ? L.csvVerChild : L.csvVerAdult;
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:14px;padding:32px 36px;width:min(420px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.3);font-family:inherit;">' +
+    '<h3 style="margin:0 0 4px;color:#1A2B3C;font-size:1.1rem;">📂 ' + L.csvModalTitle + '</h3>' +
+    '<p style="margin:0 0 16px;font-size:.83rem;color:#777;">' + L.csvModalDesc + '</p>' +
+    '<table style="width:100%;font-size:.85rem;margin-bottom:16px;border-collapse:collapse;">' +
+    '<tr><td style="color:#888;padding:3px 0;width:42%">' + L.csvFieldName + '</td><td style="font-weight:600">' + (meta.name||'—') + '</td></tr>' +
+    '<tr><td style="color:#888;padding:3px 0">' + L.csvFieldVersion + '</td><td style="font-weight:600">' + versionLabel + '</td></tr>' +
+    '<tr><td style="color:#888;padding:3px 0">' + L.csvFieldDate + '</td><td style="font-weight:600">' + meta.testDate + '</td></tr>' +
+    '</table>' +
+    '<div style="margin-bottom:12px;">' +
+    '<label style="display:block;font-size:.8rem;color:#4bb9db;font-weight:700;margin-bottom:4px;">' + L.csvModalAge + '</label>' +
+    '<input id="csv-age-input" type="number" min="4" max="99" placeholder="' + (zh?'例：8':'e.g. 8') + '" style="width:100%;padding:9px 12px;border:1.5px solid #D8C9BB;border-radius:8px;font-size:.95rem;outline:none;box-sizing:border-box;">' +
+    '</div>' +
+    '<div style="margin-bottom:6px;">' +
+    '<label style="display:block;font-size:.8rem;color:#4bb9db;font-weight:700;margin-bottom:4px;">' + L.csvModalPid + '</label>' +
+    '<input id="csv-pid-input" type="text" placeholder="' + (zh?'例：P001':'e.g. P001') + '" style="width:100%;padding:9px 12px;border:1.5px solid #D8C9BB;border-radius:8px;font-size:.95rem;outline:none;box-sizing:border-box;">' +
+    '</div>' +
+    '<p id="csv-err" style="color:#E53935;font-size:.8rem;min-height:1.2em;margin:6px 0 12px;"></p>' +
+    '<div style="display:flex;gap:10px;">' +
+    '<button id="csv-ok" style="flex:2;padding:11px;background:#4bb9db;color:#fff;border:none;border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer;">' + L.csvModalOk + '</button>' +
+    '<button id="csv-cancel" style="flex:1;padding:11px;background:#EEE;border:none;border-radius:9px;font-weight:600;cursor:pointer;">' + L.csvModalCancel + '</button>' +
+    '</div></div>';
+
+  document.body.appendChild(overlay);
+  var ageInp = overlay.querySelector('#csv-age-input');
+  var pidInp = overlay.querySelector('#csv-pid-input');
+  var errEl  = overlay.querySelector('#csv-err');
+  ageInp.focus();
+
+  function close() { document.body.removeChild(overlay); }
+  overlay.querySelector('#csv-cancel').onclick = close;
+  overlay.onclick = function(e) { if (e.target === overlay) close(); };
+
+  function generate() {
+    var age = parseInt(ageInp.value, 10);
+    if (isNaN(age) || age < 4 || age > 99) {
+      errEl.textContent = LANG[curLang].csvModalAgeErr;
+      return;
+    }
+    try {
+      var r = buildResultsFromCSV(rawText, age, pidInp.value.trim(), meta);
+      userData = { name: meta.name, pid: pidInp.value.trim(), age, gender: meta.gender, note: '' };
+      close();
+      showACPTReport(r);
+    } catch(err) {
+      errEl.textContent = LANG[curLang].csvModalParseErr + err.message;
+    }
+  }
+
+  overlay.querySelector('#csv-ok').onclick = generate;
+  ageInp.addEventListener('keydown', function(e) { if (e.key === 'Enter') generate(); });
+}
+
+function buildResultsFromCSV(text, age, pid, meta) {
+  var lines = text.trim().split(/\r?\n/).map(function(l){ return l.split(','); });
+  var isChild = meta.isChild;
+
+  // Reverse remap: CSV code (0=non-target) → internal animal code
+  var CHILD_REMAP = [10, 0, 7, 5, 3, 6, 2, 1, 9, 8, 4];
+  var ADULT_REMAP = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14, 15];
+  var CHILD_REV = new Array(11).fill(-1);
+  var ADULT_REV = new Array(16).fill(-1);
+  CHILD_REMAP.forEach(function(csv, our) { CHILD_REV[csv] = our; });
+  ADULT_REMAP.forEach(function(csv, our) { ADULT_REV[csv] = our; });
+  var reverse = isChild ? CHILD_REV : ADULT_REV;
+
+  // Parse events from row 3 onwards
+  var events = [];
+  for (var i = 3; i < lines.length; i++) {
+    var row = lines[i];
+    var type = (row[0] || '').trim();
+    if (!type) continue;
+    events.push({ type: type, event: (row[1] || '').trim(), time_s: parseFloat(row[2]) });
+  }
+  if (events.length < 10) throw new Error('Not enough data rows');
+
+  // Build trials
+  var trials = [];
+  for (var j = 0; j < events.length; j++) {
+    var ev = events[j];
+    if (ev.type !== 'Picture') continue;
+    var csvCode  = parseInt(ev.event);
+    var ourCode  = (reverse[csvCode] !== undefined && reverse[csvCode] >= 0) ? reverse[csvCode] : csvCode;
+    var onsetMs  = ev.time_s * 1000;
+    var isTarget = (csvCode !== 0);
+    var responseMs = null;
+    if (j + 1 < events.length && events[j+1].type === 'Response') {
+      responseMs = events[j+1].time_s * 1000;
+    }
+    var rtMs = responseMs != null ? responseMs - onsetMs : null;
+    var rtype;
+    if (responseMs == null) {
+      rtype = isTarget ? 'miss' : 'correct_reject';
+    } else if (rtMs < 100) {
+      rtype = 'too_fast';
+    } else {
+      rtype = isTarget ? 'hit' : 'false_alarm';
+    }
+    trials.push({
+      trial: { index: trials.length, phase: 'main', stimulus_code: ourCode,
+               is_target: isTarget, isi_ms: 1000, duration_ms: 500 },
+      stimulus_onset_ms: onsetMs,
+      response_ms: responseMs,
+      reaction_time_ms: rtMs,
+      response_type: rtype,
+    });
+  }
+
+  if (trials.length < 60) throw new Error(LANG[curLang].csvModalTooFew);
+
+  return {
+    user_name:   meta.name,
+    age:         age,
+    test_date:   meta.testDate,
+    test_time:   meta.testTime || '',
+    is_child:    isChild,
+    main_trials: trials.length,
+    trials:      trials,
+    timing_notes: '',
+  };
+}
 
 // ─────────────────────────────────────────────
 // ACPT Behavior Analysis + T-score Report
@@ -2348,6 +2541,8 @@ function showACPTReport(r) {
   .rpt-footer{text-align:center;padding:20px 0 8px;border-top:1px solid #E2EBF0;margin-top:6px;color:#aaa;font-size:.72rem}
   /* ── Print button ── */
   .btn-print{display:inline-block;padding:10px 26px;background:#4bb9db;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.92rem;cursor:pointer;margin-bottom:16px}
+  /* ── Force background colours in print/PDF ── */
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   /* ── Print ── */
   @media print{
     @page{size:A4;margin:10mm 13mm}
@@ -2378,6 +2573,7 @@ function showACPTReport(r) {
       <div class="info-item"><label>性別 Gender</label><span>${gender}</span></div>
       <div class="info-item"><label>測驗版本 Version</label><span>${vr}</span></div>
       <div class="info-item"><label>施測日期 Date</label><span>${dateStr}</span></div>
+      <div class="info-item"><label>施測時間 Time</label><span>${r.test_time || '—'}</span></div>
       <div class="info-item"><label>試次總數 Trials</label><span>${r.main_trials || m.nTarg + m.nNtarg}</span></div>
     </div>
   </div>

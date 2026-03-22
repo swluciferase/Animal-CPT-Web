@@ -64,7 +64,9 @@ html_body = """
         <label for="inp-note" id="label-note">備註（可留空）</label>
         <input id="inp-note" type="text" placeholder="例：施測地點、特殊情況等">
       </div>
-      <button type="submit" class="btn-primary" id="btn-submit">開始準備 →</button>
+      <button type="submit" class="btn-primary" id="btn-submit">進入測驗 →</button>
+      <button type="button" id="btn-load-csv" class="btn-secondary" style="width:100%;margin-top:8px;">📂 讀取 CSV 產生報告</button>
+      <input type="file" id="csv-file-input" accept=".csv" style="display:none">
     </form>
   </div>
 </section>
