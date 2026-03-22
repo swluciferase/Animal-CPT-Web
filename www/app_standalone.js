@@ -943,11 +943,20 @@ function computeACPTMetrics(r) {
 
   // Groups of n_group for HRT_mean_block (BlockChange)
   const nGroup  = isChild ? 40 : 60;
-  const meanBlocks = [];
+  const blockStats = [];
   for (let i = 0; i < stim.length; i += nGroup) {
-    const rts = stim.slice(i, i+nGroup).filter(s => s.rtype==='hit').map(s => s.rt*1000);
-    meanBlocks.push(isNaN(arrMean(rts)) ? 0 : arrMean(rts));
+    const blk = stim.slice(i, i+nGroup);
+    const rts = blk.filter(s=>s.rtype==='hit').map(s=>s.rt*1000);
+    const nT = blk.filter(s=>s.is_target).length;
+    const nN = blk.filter(s=>!s.is_target).length;
+    blockStats.push({
+      hrtMean: isNaN(arrMean(rts)) ? null : arrMean(rts),
+      hrtSD:   isNaN(arrStdPop(rts)) ? null : arrStdPop(rts),
+      omPct:   nT > 0 ? blk.filter(s=>s.rtype==='miss').length / nT * 100 : 0,
+      coPct:   nN > 0 ? blk.filter(s=>s.rtype==='false_alarm').length / nN * 100 : 0,
+    });
   }
+  const meanBlocks = blockStats.map(b => b.hrtMean ?? 0);
   const BlockChange = meanBlocks.length > 1
     ? (meanBlocks[meanBlocks.length-1] - meanBlocks[0]) / (meanBlocks.length - 1) : 0;
 
@@ -961,16 +970,26 @@ function computeACPTMetrics(r) {
   const Variability = arrStdPop(sdBlocks);
 
   // ISI groups
-  let isiGroups;
+  let isiGroups, isiLabels;
   if (isChild) {
     isiGroups = [stim.filter(s=>s.bd===1.5), stim.filter(s=>s.bd===3.0)];
+    isiLabels = ['ISI-1.5s', 'ISI-3.0s'];
   } else {
     isiGroups = [stim.filter(s=>s.bd===1.0), stim.filter(s=>s.bd===2.0), stim.filter(s=>s.bd===4.0)];
+    isiLabels = ['ISI-1.0s', 'ISI-2.0s', 'ISI-4.0s'];
   }
-  const isiMeans = isiGroups.map(g => {
+  const isiStats = isiGroups.map(g => {
     const rts = g.filter(s=>s.rtype==='hit').map(s=>s.rt*1000);
-    return isNaN(arrMean(rts)) ? 0 : arrMean(rts);
+    const nT = g.filter(s=>s.is_target).length;
+    const nN = g.filter(s=>!s.is_target).length;
+    return {
+      hrtMean: isNaN(arrMean(rts)) ? null : arrMean(rts),
+      hrtSD:   isNaN(arrStdPop(rts)) ? null : arrStdPop(rts),
+      omPct:   nT > 0 ? g.filter(s=>s.rtype==='miss').length / nT * 100 : 0,
+      coPct:   nN > 0 ? g.filter(s=>s.rtype==='false_alarm').length / nN * 100 : 0,
+    };
   });
+  const isiMeans = isiStats.map(s => s.hrtMean ?? 0);
   const ISIChange = isiMeans.length > 1
     ? (isiMeans[isiMeans.length-1] - isiMeans[0]) / (isiMeans.length-1) : 0;
 
@@ -982,7 +1001,7 @@ function computeACPTMetrics(r) {
     Variability: isNaN(Variability) ? null : Variability,
     BlockChange, ISIChange,
     Zhit, Zfalse, detectability,
-    meanBlocks, isiMeans,
+    blockStats, isiStats, isiLabels,
   };
 }
 
@@ -1048,9 +1067,154 @@ function tInterpretLabel(t) {
   return { label: '顯著偏高', color: '#C62828' };
 }
 
+// SVG chart helpers
+function svgLineChart(labels, vals, sdVals, W, H) {
+  const ml=52, mr=12, mt=22, mb=36;
+  const iw=W-ml-mr, ih=H-mt-mb;
+  const finite = vals.filter(v=>v!=null&&isFinite(v));
+  if (!finite.length) return '<svg width="'+W+'" height="'+H+'"></svg>';
+  const yMin = Math.floor((Math.min(...finite)-30)/10)*10;
+  const yMax = Math.ceil((Math.max(...finite)+30)/10)*10;
+  const sy = v => ih*(1-(v-yMin)/(yMax-yMin));
+  const sx = i => labels.length<2 ? iw/2 : i*iw/(labels.length-1);
+  let g='', xg='', pts='', dots='', dlbs='';
+  for (let k=0;k<=4;k++) {
+    const y=ih*k/4, v=yMax-(yMax-yMin)*k/4;
+    g+=`<line x1="0" y1="${y.toFixed(1)}" x2="${iw}" y2="${y.toFixed(1)}" stroke="#eee" stroke-width="1"/>`;
+    g+=`<text x="-4" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#999">${v.toFixed(0)}</text>`;
+  }
+  vals.forEach((v,i)=>{
+    xg+=`<text x="${sx(i).toFixed(1)}" y="${(ih+14).toFixed(1)}" text-anchor="middle" font-size="10" fill="#666">${labels[i]}</text>`;
+    if(v==null) return;
+    pts+=(pts?'L':'M')+`${sx(i).toFixed(1)},${sy(v).toFixed(1)} `;
+    const ci=sy(v);
+    dots+=`<circle cx="${sx(i).toFixed(1)}" cy="${ci.toFixed(1)}" r="4" fill="#E65C00"/>`;
+    dlbs+=`<text x="${sx(i).toFixed(1)}" y="${(ci-8).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555">${v.toFixed(0)}</text>`;
+  });
+  return `<svg width="${W}" height="${H}" style="display:block;overflow:visible"><g transform="translate(${ml},${mt})">`+
+    g+`<path d="${pts.trim()}" fill="none" stroke="#E65C00" stroke-width="2.5" stroke-linejoin="round"/>`+dots+dlbs+xg+
+    `<line x1="0" y1="0" x2="0" y2="${ih}" stroke="#ccc"/><line x1="0" y1="${ih}" x2="${iw}" y2="${ih}" stroke="#ccc"/>`+
+    `</g></svg>`;
+}
+function svgBarChart(labels, vals, W, H, color) {
+  const ml=44, mr=12, mt=22, mb=36;
+  const iw=W-ml-mr, ih=H-mt-mb;
+  const finite = vals.filter(v=>v!=null&&isFinite(v));
+  const yMax = finite.length ? Math.max(Math.ceil(Math.max(...finite)/5)*5, 5) : 10;
+  const sy = v => ih*(1-v/yMax);
+  let g='', bars='', xg='';
+  for (let k=0;k<=4;k++) {
+    const y=ih*k/4, v=yMax*(1-k/4);
+    g+=`<line x1="0" y1="${y.toFixed(1)}" x2="${iw}" y2="${y.toFixed(1)}" stroke="#eee" stroke-width="1"/>`;
+    g+=`<text x="-4" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#999">${v.toFixed(0)}</text>`;
+  }
+  const bw = iw/labels.length*0.6, sp = iw/labels.length;
+  vals.forEach((v,i)=>{
+    const x=i*sp+sp/2-bw/2, vv=v??0, h=ih*vv/yMax, y=ih-h;
+    bars+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${color}" rx="2"/>`;
+    bars+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y-3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555">${vv.toFixed(1)}</text>`;
+    xg+=`<text x="${(i*sp+sp/2).toFixed(1)}" y="${(ih+14).toFixed(1)}" text-anchor="middle" font-size="10" fill="#666">${labels[i]}</text>`;
+  });
+  return `<svg width="${W}" height="${H}" style="display:block;overflow:visible"><g transform="translate(${ml},${mt})">`+
+    g+bars+xg+
+    `<line x1="0" y1="0" x2="0" y2="${ih}" stroke="#ccc"/><line x1="0" y1="${ih}" x2="${iw}" y2="${ih}" stroke="#ccc"/>`+
+    `</g></svg>`;
+}
+function chartTable(headers, rows) {
+  const ths = headers.map(h=>`<th>${h}</th>`).join('');
+  const trs = rows.map(r=>'<tr>'+r.map(c=>`<td>${c}</td>`).join('')+'</tr>').join('');
+  return `<table class="ct"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
 function showACPTReport(r) {
   const m = computeACPTMetrics(r);
   if (!m) { alert('試次數量不足，無法產生分析報告。'); return; }
+
+  // ── Build chart sections ──────────────────────────────────────
+  const nBlocks = m.blockStats.length;
+  const blockLabels = m.blockStats.map((_,i)=>`Block-${i+1}`);
+  const CW=360, CH=195;  // chart width/height
+
+  // 1. HRT by Block (line chart)
+  const hrtByBlockSvg = svgLineChart(blockLabels, m.blockStats.map(b=>b.hrtMean), m.blockStats.map(b=>b.hrtSD), CW, CH);
+  const hrtBlockTable = chartTable(
+    ['', ...blockLabels],
+    [['HRT (ms)', ...m.blockStats.map(b=>b.hrtMean!=null?b.hrtMean.toFixed(0):'—')],
+     ['HRT SD', ...m.blockStats.map(b=>b.hrtSD!=null?b.hrtSD.toFixed(0):'—')]]
+  );
+  // 2. Omissions by Block
+  const omBlockSvg = svgBarChart(blockLabels, m.blockStats.map(b=>b.omPct), CW, CH, '#5B9BD5');
+  const omBlockTable = chartTable(
+    ['', ...blockLabels],
+    [['Omissions (%)', ...m.blockStats.map(b=>b.omPct.toFixed(1))]]
+  );
+  // 3. Commissions by Block
+  const coBlockSvg = svgBarChart(blockLabels, m.blockStats.map(b=>b.coPct), CW, CH, '#ED7D31');
+  const coBlockTable = chartTable(
+    ['', ...blockLabels],
+    [['Commissions (%)', ...m.blockStats.map(b=>b.coPct.toFixed(1))]]
+  );
+  // 4. HRT by ISI
+  const CW2=280;
+  const hrtIsiSvg = svgLineChart(m.isiLabels, m.isiStats.map(s=>s.hrtMean), m.isiStats.map(s=>s.hrtSD), CW2, CH);
+  const hrtIsiTable = chartTable(
+    ['', ...m.isiLabels],
+    [['HRT (ms)', ...m.isiStats.map(s=>s.hrtMean!=null?s.hrtMean.toFixed(0):'—')],
+     ['HRT SD',   ...m.isiStats.map(s=>s.hrtSD!=null?s.hrtSD.toFixed(0):'—')]]
+  );
+  // 5. Omissions by ISI
+  const omIsiSvg = svgBarChart(m.isiLabels, m.isiStats.map(s=>s.omPct), CW2, CH, '#5B9BD5');
+  const omIsiTable = chartTable(
+    ['', ...m.isiLabels],
+    [['Omissions (%)', ...m.isiStats.map(s=>s.omPct.toFixed(1))]]
+  );
+  // 6. Commissions by ISI
+  const coIsiSvg = svgBarChart(m.isiLabels, m.isiStats.map(s=>s.coPct), CW2, CH, '#ED7D31');
+  const coIsiTable = chartTable(
+    ['', ...m.isiLabels],
+    [['Commissions (%)', ...m.isiStats.map(s=>s.coPct.toFixed(1))]]
+  );
+
+  const chartsHTML = `
+  <div class="card">
+    <h2>表現趨勢圖</h2>
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Hit Reaction Time by Block</div>
+        ${hrtByBlockSvg}${hrtBlockTable}
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Omissions by Block</div>
+        ${omBlockSvg}${omBlockTable}
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Commissions by Block</div>
+        ${coBlockSvg}${coBlockTable}
+      </div>
+    </div>
+    <div class="chart-row" style="margin-top:20px">
+      <div class="chart-box">
+        <div class="chart-title">HRT by ISI</div>
+        ${hrtIsiSvg}${hrtIsiTable}
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Omissions by ISI</div>
+        ${omIsiSvg}${omIsiTable}
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Commissions by ISI</div>
+        ${coIsiSvg}${coIsiTable}
+      </div>
+    </div>
+  </div>`;
+  const CHART_CSS = `
+    .chart-row{display:flex;flex-wrap:wrap;gap:16px}
+    .chart-box{flex:1;min-width:200px;background:#FDFAF6;border-radius:10px;padding:14px 12px}
+    .chart-title{font-size:.82rem;font-weight:700;color:#5C3A1E;margin-bottom:8px;text-align:center}
+    .ct{width:100%;border-collapse:collapse;font-size:.75rem;margin-top:10px}
+    .ct th{background:#F8F2EA;padding:4px 8px;text-align:center;font-weight:700;color:#7a6052}
+    .ct td{padding:4px 8px;text-align:center;border-top:1px solid #F5EEE6}
+  `;
 
   const ageGroup = getAgeGroup(r.age);
   const norm = ACPT_NORMS[ageGroup];
@@ -1130,6 +1294,7 @@ function showACPTReport(r) {
   tbody tr:hover{background:#FDFAF6}
   @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #eee}.no-print{display:none}}
   .btn-print{display:inline-block;padding:10px 24px;background:#E65C00;color:#fff;border:none;border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer;margin-bottom:16px}
+  ${CHART_CSS}
 </style></head><body>
 <div class="wrap">
   <button class="btn-print no-print" onclick="window.print()">🖨 列印 / 儲存 PDF</button>
@@ -1172,6 +1337,8 @@ function showACPTReport(r) {
     </table>
     <p style="margin-top:14px;font-size:.75rem;color:#aaa">T 分數平均 = 50，標準差 = 10。回歸後 T 分以常模進行非線性校正。偏高表示注意力需求增加；HRT 偏低表示反應過快。</p>
   </div>
+
+  ${chartsHTML}
 
   <div class="card" style="font-size:.78rem;color:#aaa">
     <p>本報告依據 Animal Continuous Performance Test (ACPT) 常模資料自動產生，僅供臨床參考使用。</p>
