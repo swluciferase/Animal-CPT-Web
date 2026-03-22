@@ -2017,76 +2017,78 @@ function showACPTReport(r) {
   // ── Build chart sections ──────────────────────────────────────
   const nBlocks = m.blockStats.length;
   const blockLabels = m.blockStats.map((_,i)=>`Block-${i+1}`);
-  const CW=360, CH=195;  // chart width/height
+  const BCW=680, BCH=200;  // block charts: wide viewBox, full-width display
+  const ICW=280, ICH=180;  // ISI charts: 3-column display
 
-  // 1. HRT by Block (line chart)
-  const hrtByBlockSvg = svgLineChart(blockLabels, m.blockStats.map(b=>b.hrtMean), m.blockStats.map(b=>b.hrtSD), CW, CH);
+  // Block charts — all bar charts (直方圖)
+  const hrtByBlockSvg = svgBarChart(blockLabels, m.blockStats.map(b=>b.hrtMean), BCW, BCH, '#E65C00');
   const hrtBlockTable = chartTable(
     ['', ...blockLabels],
     [['HRT (ms)', ...m.blockStats.map(b=>b.hrtMean!=null?b.hrtMean.toFixed(0):'—')],
-     ['HRT SD', ...m.blockStats.map(b=>b.hrtSD!=null?b.hrtSD.toFixed(0):'—')]]
+     ['HRT SD',   ...m.blockStats.map(b=>b.hrtSD!=null?b.hrtSD.toFixed(0):'—')]]
   );
-  // 2. Omissions by Block
-  const omBlockSvg = svgBarChart(blockLabels, m.blockStats.map(b=>b.omPct), CW, CH, '#5B9BD5');
+  const omBlockSvg = svgBarChart(blockLabels, m.blockStats.map(b=>b.omPct), BCW, BCH, '#5B9BD5');
   const omBlockTable = chartTable(
     ['', ...blockLabels],
     [['Omissions (%)', ...m.blockStats.map(b=>b.omPct.toFixed(1))]]
   );
-  // 3. Commissions by Block
-  const coBlockSvg = svgBarChart(blockLabels, m.blockStats.map(b=>b.coPct), CW, CH, '#ED7D31');
+  const coBlockSvg = svgBarChart(blockLabels, m.blockStats.map(b=>b.coPct), BCW, BCH, '#ED7D31');
   const coBlockTable = chartTable(
     ['', ...blockLabels],
     [['Commissions (%)', ...m.blockStats.map(b=>b.coPct.toFixed(1))]]
   );
-  // 4. HRT by ISI
-  const CW2=320;
-  const hrtIsiSvg = svgLineChart(m.isiLabels, m.isiStats.map(s=>s.hrtMean), m.isiStats.map(s=>s.hrtSD), CW2, CH);
+
+  // ISI charts — all line charts (折線圖)
+  const hrtIsiSvg = svgLineChart(m.isiLabels, m.isiStats.map(s=>s.hrtMean), m.isiStats.map(s=>s.hrtSD), ICW, ICH);
   const hrtIsiTable = chartTable(
     ['', ...m.isiLabels],
     [['HRT (ms)', ...m.isiStats.map(s=>s.hrtMean!=null?s.hrtMean.toFixed(0):'—')],
      ['HRT SD',   ...m.isiStats.map(s=>s.hrtSD!=null?s.hrtSD.toFixed(0):'—')]]
   );
-  // 5. Omissions by ISI
-  const omIsiSvg = svgBarChart(m.isiLabels, m.isiStats.map(s=>s.omPct), CW2, CH, '#5B9BD5');
+  const omIsiSvg = svgLineChart(m.isiLabels, m.isiStats.map(s=>s.omPct), null, ICW, ICH);
   const omIsiTable = chartTable(
     ['', ...m.isiLabels],
     [['Omissions (%)', ...m.isiStats.map(s=>s.omPct.toFixed(1))]]
   );
-  // 6. Commissions by ISI
-  const coIsiSvg = svgBarChart(m.isiLabels, m.isiStats.map(s=>s.coPct), CW2, CH, '#ED7D31');
+  const coIsiSvg = svgLineChart(m.isiLabels, m.isiStats.map(s=>s.coPct), null, ICW, ICH);
   const coIsiTable = chartTable(
     ['', ...m.isiLabels],
     [['Commissions (%)', ...m.isiStats.map(s=>s.coPct.toFixed(1))]]
   );
 
-  function chartRow(title, svg, table) {
-    return `<div class="chart-box">
-      <div class="chart-title">${title}</div>
-      <div class="chart-inner">${svg}<div class="chart-tbl">${table}</div></div>
-    </div>`;
+  // Block: each chart full-width, table below
+  function blockChartBox(title, svg, table) {
+    return `<div class="chart-blk"><div class="chart-title">${title}</div>${svg}${table}</div>`;
   }
+  // ISI: 3-column, table below each
+  function isiChartBox(title, svg, table) {
+    return `<div class="chart-isi"><div class="chart-title">${title}</div>${svg}${table}</div>`;
+  }
+
   const chartsHTML = `
   <div class="card">
     <h2>表現趨勢圖 — By Block</h2>
-    ${chartRow('Hit Reaction Time by Block', hrtByBlockSvg, hrtBlockTable)}
-    ${chartRow('Omissions by Block', omBlockSvg, omBlockTable)}
-    ${chartRow('Commissions by Block', coBlockSvg, coBlockTable)}
+    ${blockChartBox('Hit Reaction Time by Block', hrtByBlockSvg, hrtBlockTable)}
+    ${blockChartBox('Omissions by Block', omBlockSvg, omBlockTable)}
+    ${blockChartBox('Commissions by Block', coBlockSvg, coBlockTable)}
   </div>
   <div class="card">
     <h2>表現趨勢圖 — By ISI</h2>
-    ${chartRow('HRT by ISI', hrtIsiSvg, hrtIsiTable)}
-    ${chartRow('Omissions by ISI', omIsiSvg, omIsiTable)}
-    ${chartRow('Commissions by ISI', coIsiSvg, coIsiTable)}
+    <div class="isi-row">
+      ${isiChartBox('HRT by ISI', hrtIsiSvg, hrtIsiTable)}
+      ${isiChartBox('Omissions by ISI', omIsiSvg, omIsiTable)}
+      ${isiChartBox('Commissions by ISI', coIsiSvg, coIsiTable)}
+    </div>
   </div>`;
   const CHART_CSS = `
-    .chart-box{background:#FDFAF6;border-radius:10px;padding:12px 14px;margin-bottom:10px;page-break-inside:avoid}
-    .chart-title{font-size:.82rem;font-weight:700;color:#5C3A1E;margin-bottom:8px}
-    .chart-inner{display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start}
-    .chart-tbl{overflow-x:auto}
-    .ct{width:100%;border-collapse:collapse;font-size:.72rem}
-    .ct th{background:#F8F2EA;padding:4px 6px;text-align:center;font-weight:700;color:#7a6052;white-space:nowrap}
-    .ct td{padding:4px 6px;text-align:center;border-top:1px solid #F5EEE6;white-space:nowrap}
-    @media print{.chart-box{page-break-inside:avoid}.chart-inner{grid-template-columns:2fr 1fr}}
+    .chart-blk{background:#FDFAF6;border-radius:10px;padding:14px 16px;margin-bottom:12px;page-break-inside:avoid}
+    .isi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .chart-isi{background:#FDFAF6;border-radius:10px;padding:12px 10px;page-break-inside:avoid}
+    .chart-title{font-size:.82rem;font-weight:700;color:#5C3A1E;margin-bottom:6px}
+    .ct{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:8px}
+    .ct th{background:#F8F2EA;padding:3px 6px;text-align:center;font-weight:700;color:#7a6052}
+    .ct td{padding:3px 6px;text-align:center;border-top:1px solid #F5EEE6}
+    @media print{.chart-blk,.chart-isi{page-break-inside:avoid}.isi-row{grid-template-columns:repeat(3,1fr)}}
   `;
 
   const ageGroup = getAgeGroup(r.age);
