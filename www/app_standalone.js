@@ -1250,7 +1250,6 @@ function showACPTReport(r) {
     return `<tr>
       <td style="padding:10px 12px;font-weight:600;white-space:nowrap">${row.label}</td>
       <td style="padding:10px 12px;text-align:center">${row.rawStr}</td>
-      <td style="padding:10px 12px;text-align:center">${row.tRaw ?? '—'}</td>
       <td style="padding:10px 12px;text-align:center;font-weight:700;color:${interp.color}">${row.tFinal ?? '—'}<br><small style="font-weight:400">${interp.label}</small>
         ${row.tFinal != null ? tBar(row.tFinal) : ''}</td>
       <td style="padding:10px 12px;font-size:0.82rem;line-height:1.5;color:#444">${advice}</td>
@@ -1281,7 +1280,7 @@ function showACPTReport(r) {
 
   const html = `<!DOCTYPE html>
 <html lang="zh-TW"><head><meta charset="UTF-8">
-<title>ACPT 分析報告 — ${r.user_name}</title>
+<title>BrainQ10 CPTW 注意力評估報告 — ${r.user_name}</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;margin:0;padding:0;background:#F3F6F9;color:#1A2B3C}
@@ -1314,7 +1313,7 @@ function showACPTReport(r) {
   /* ── T-score table ── */
   table{width:100%;border-collapse:collapse;font-size:.82rem}
   thead tr{background:#4bb9db}
-  thead th{padding:9px 11px;text-align:left;font-weight:700;color:#fff;font-size:.73rem;text-transform:uppercase;letter-spacing:.04em}
+  thead th{background:#4bb9db;padding:9px 11px;text-align:left;font-weight:700;color:#fff;font-size:.73rem;letter-spacing:.04em}
   tbody tr{border-bottom:1px solid #E2EBF0}
   tbody tr:hover{background:#EEF7FB}
   /* ── Footer ── */
@@ -1337,38 +1336,38 @@ function showACPTReport(r) {
 
   <div class="rpt-header">
     <div style="width:180px;flex-shrink:0">${EEG_SVG}</div>
-    <div class="rpt-tagline"><strong>ACPT 動物持續表現測驗</strong>Animal Continuous Performance Test</div>
+    <div class="rpt-tagline"><strong>BrainQ10 CPTW 注意力評估測驗</strong>BrainQ10 Continuous Performance Test Web</div>
   </div>
 
   <button class="btn-print no-print" onclick="window.print()">🖨 列印 / 儲存 PDF</button>
 
   <div class="card">
     <div class="rpt-title">注意力評估報告</div>
-    <div class="rpt-subtitle">Animal Continuous Performance Test — Assessment Report</div>
+    <div class="rpt-subtitle">BrainQ10 Continuous Performance Test Web — Assessment Report</div>
     <div class="info-grid">
-      <div class="info-item"><label>姓名</label><span>${r.user_name}</span></div>
-      <div class="info-item"><label>年齡</label><span>${r.age} 歲（${ageGroup}）</span></div>
-      <div class="info-item"><label>性別</label><span>${gender}</span></div>
-      <div class="info-item"><label>測驗版本</label><span>${vr}</span></div>
-      <div class="info-item"><label>施測日期</label><span>${dateStr}</span></div>
-      <div class="info-item"><label>試次總數</label><span>${r.main_trials || m.nTarg + m.nNtarg}</span></div>
+      <div class="info-item"><label>姓名 Name</label><span>${r.user_name}</span></div>
+      <div class="info-item"><label>年齡 Age</label><span>${r.age} 歲（${ageGroup}）</span></div>
+      <div class="info-item"><label>性別 Gender</label><span>${gender}</span></div>
+      <div class="info-item"><label>測驗版本 Version</label><span>${vr}</span></div>
+      <div class="info-item"><label>施測日期 Date</label><span>${dateStr}</span></div>
+      <div class="info-item"><label>試次總數 Trials</label><span>${r.main_trials || m.nTarg + m.nNtarg}</span></div>
     </div>
   </div>
 
   <div class="card">
     <h2>行為測量結果 <span class="en">Behavioral Metrics</span></h2>
     <div class="detect-box">
-      <div class="detect-item"><label>Detectability</label><span>${detectStr}</span></div>
-      <div class="detect-item"><label>Omissions 遺漏</label><span>${(m.omissions*100).toFixed(1)}%（${m.nMiss}/${m.nTarg}）</span></div>
-      <div class="detect-item"><label>Commissions 衝動</label><span>${(m.commissions*100).toFixed(1)}%（${m.nFA}/${m.nNtarg}）</span></div>
-      <div class="detect-item"><label>Perseverations 堅持</label><span>${(m.persevRate*100).toFixed(1)}%（${m.nPersev}/${m.nAllHit}）</span></div>
+      <div class="detect-item"><label>辨識力 Detectability</label><span>${detectStr}</span></div>
+      <div class="detect-item"><label>遺漏 Omissions</label><span>${(m.omissions*100).toFixed(1)}%（${m.nMiss}/${m.nTarg}）</span></div>
+      <div class="detect-item"><label>衝動 Commissions</label><span>${(m.commissions*100).toFixed(1)}%（${m.nFA}/${m.nNtarg}）</span></div>
+      <div class="detect-item"><label>堅持 Perseverations</label><span>${(m.persevRate*100).toFixed(1)}%（${m.nPersev}/${m.nAllHit}）</span></div>
     </div>
     <div class="raw-stats">
-      <div class="rs"><label>HRT (ms)</label><span>${m.HRT != null ? m.HRT.toFixed(1) : '—'}</span></div>
-      <div class="rs"><label>HRT SD (ms)</label><span>${m.HRTSD != null ? m.HRTSD.toFixed(1) : '—'}</span></div>
-      <div class="rs"><label>Variability (ms)</label><span>${m.Variability != null ? m.Variability.toFixed(1) : '—'}</span></div>
-      <div class="rs"><label>Block Change (ms)</label><span>${m.BlockChange.toFixed(1)}</span></div>
-      <div class="rs"><label>ISI Change (ms)</label><span>${m.ISIChange.toFixed(1)}</span></div>
+      <div class="rs"><label>命中反應時間 HRT</label><span>${m.HRT != null ? m.HRT.toFixed(1) : '—'} ms</span></div>
+      <div class="rs"><label>反應時間標準差 HRT SD</label><span>${m.HRTSD != null ? m.HRTSD.toFixed(1) : '—'} ms</span></div>
+      <div class="rs"><label>變異性 Variability</label><span>${m.Variability != null ? m.Variability.toFixed(1) : '—'} ms</span></div>
+      <div class="rs"><label>區塊變化 Block Change</label><span>${m.BlockChange.toFixed(1)} ms</span></div>
+      <div class="rs"><label>ISI 變化 ISI Change</label><span>${m.ISIChange.toFixed(1)} ms</span></div>
     </div>
   </div>
 
@@ -1376,18 +1375,18 @@ function showACPTReport(r) {
     <h2>T 分數與評估建議 <span class="en">T-Scores &amp; Recommendations（${ageGroup}）</span></h2>
     <table>
       <thead><tr>
-        <th>指標</th><th>原始分數</th><th>原始 T 分</th><th>回歸後 T 分</th><th>評估與建議</th>
+        <th>指標<br>Index</th><th>原始分數<br>Raw Score</th><th>T 分數<br>T-Score</th><th>評估與建議<br>Assessment</th>
       </tr></thead>
       <tbody>${metricRowsHTML}</tbody>
     </table>
-    <p style="margin-top:12px;font-size:.73rem;color:#aaa">T 分數平均 = 50，標準差 = 10；回歸後 T 分以常模進行非線性校正，限制於 1–99 之間。偏高表示注意力需求增加；HRT 偏低表示反應過快。</p>
   </div>
 
   ${chartsHTML}
 
   <div class="rpt-footer">
     <div style="display:inline-block;width:120px;margin-bottom:8px">${EEG_SVG}</div><br>
-    本報告依據 Animal Continuous Performance Test (ACPT) 常模資料自動產生，僅供臨床參考使用。
+    本報告依據 Continuous Performance Test（CPT）常模資料結合 AI 演算自動產生，非供醫療診斷之目的，僅做為個人評估之參考。<br>
+    <em>This report is automatically generated based on Continuous Performance Test (CPT) normative data combined with AI algorithms. It is not intended for medical diagnosis and should be used solely as a personal assessment reference.</em>
   </div>
 
 </div></body></html>`;
