@@ -2111,7 +2111,7 @@ function showACPTReport(r) {
     const z = (raw - n[0]) / n[1];
     const tRaw = 50 + 10 * z;
     const tFinal = acptRegress(key, tRaw);
-    const tF = tFinal != null ? Math.round(tFinal) : null;
+    const tF = tFinal != null ? Math.min(99, Math.max(1, Math.round(tFinal))) : null;
     return { key, label, rawStr: fmt(raw), tRaw: tRaw.toFixed(1), tFinal: tF };
   });
 
