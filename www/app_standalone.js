@@ -1389,7 +1389,7 @@ function showACPTReport(r) {
     const interp = tInterpretLabel(row.tFinal);
     const advice = acptAdvice(row.key, row.tFinal);
     return `<tr>
-      <td style="padding:10px 12px;font-weight:600;white-space:nowrap">${row.label}</td>
+      <td style="padding:10px 12px;font-weight:600">${row.label}</td>
       <td style="padding:10px 12px;text-align:center">${row.rawStr}</td>
       <td style="padding:10px 12px;text-align:center;font-weight:700;color:${interp.color}">${row.tFinal ?? '—'}<br><small style="font-weight:400">${interp.label}</small>
         ${row.tFinal != null ? tBar(row.tFinal) : ''}</td>
@@ -1454,7 +1454,7 @@ function showACPTReport(r) {
   /* ── T-score table ── */
   table{width:100%;border-collapse:collapse;font-size:.82rem}
   thead tr{background:#4bb9db}
-  thead th{background:#4bb9db;padding:9px 11px;text-align:left;font-weight:700;color:#fff;font-size:.73rem;letter-spacing:.04em}
+  thead th{background:#4bb9db;padding:9px 11px;text-align:center;font-weight:700;color:#fff;font-size:.73rem;letter-spacing:.04em}
   tbody tr{border-bottom:1px solid #E2EBF0}
   tbody tr:hover{background:#EEF7FB}
   /* ── Footer ── */
@@ -1514,7 +1514,13 @@ function showACPTReport(r) {
 
   <div class="card">
     <h2>T 分數與評估建議 <span class="en">T-Scores &amp; Recommendations（${ageGroup}）</span></h2>
-    <table>
+    <table style="table-layout:fixed">
+      <colgroup>
+        <col style="width:24%">
+        <col style="width:13%">
+        <col style="width:18%">
+        <col>
+      </colgroup>
       <thead><tr>
         <th>指標<br>Index</th><th>原始分數<br>Raw Score</th><th>T 分數<br>T-Score</th><th>評估與建議<br>Assessment</th>
       </tr></thead>
