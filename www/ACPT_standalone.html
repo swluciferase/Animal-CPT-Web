@@ -1951,12 +1951,12 @@ function tInterpretLabel(t) {
   return { label: '顯著偏高', color: '#C62828' };
 }
 
-// SVG chart helpers
+// SVG chart helpers — use viewBox so SVGs scale to container width
 function svgLineChart(labels, vals, sdVals, W, H) {
   const ml=52, mr=12, mt=22, mb=36;
   const iw=W-ml-mr, ih=H-mt-mb;
   const finite = vals.filter(v=>v!=null&&isFinite(v));
-  if (!finite.length) return '<svg width="'+W+'" height="'+H+'"></svg>';
+  if (!finite.length) return `<svg viewBox="0 0 ${W} ${H}" width="100%"></svg>`;
   const yMin = Math.floor((Math.min(...finite)-30)/10)*10;
   const yMax = Math.ceil((Math.max(...finite)+30)/10)*10;
   const sy = v => ih*(1-(v-yMin)/(yMax-yMin));
@@ -1975,7 +1975,7 @@ function svgLineChart(labels, vals, sdVals, W, H) {
     dots+=`<circle cx="${sx(i).toFixed(1)}" cy="${ci.toFixed(1)}" r="4" fill="#E65C00"/>`;
     dlbs+=`<text x="${sx(i).toFixed(1)}" y="${(ci-8).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555">${v.toFixed(0)}</text>`;
   });
-  return `<svg width="${W}" height="${H}" style="display:block;overflow:visible"><g transform="translate(${ml},${mt})">`+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible"><g transform="translate(${ml},${mt})">`+
     g+`<path d="${pts.trim()}" fill="none" stroke="#E65C00" stroke-width="2.5" stroke-linejoin="round"/>`+dots+dlbs+xg+
     `<line x1="0" y1="0" x2="0" y2="${ih}" stroke="#ccc"/><line x1="0" y1="${ih}" x2="${iw}" y2="${ih}" stroke="#ccc"/>`+
     `</g></svg>`;
@@ -1999,7 +1999,7 @@ function svgBarChart(labels, vals, W, H, color) {
     bars+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y-3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555">${vv.toFixed(1)}</text>`;
     xg+=`<text x="${(i*sp+sp/2).toFixed(1)}" y="${(ih+14).toFixed(1)}" text-anchor="middle" font-size="10" fill="#666">${labels[i]}</text>`;
   });
-  return `<svg width="${W}" height="${H}" style="display:block;overflow:visible"><g transform="translate(${ml},${mt})">`+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible"><g transform="translate(${ml},${mt})">`+
     g+bars+xg+
     `<line x1="0" y1="0" x2="0" y2="${ih}" stroke="#ccc"/><line x1="0" y1="${ih}" x2="${iw}" y2="${ih}" stroke="#ccc"/>`+
     `</g></svg>`;
@@ -2039,7 +2039,7 @@ function showACPTReport(r) {
     [['Commissions (%)', ...m.blockStats.map(b=>b.coPct.toFixed(1))]]
   );
   // 4. HRT by ISI
-  const CW2=280;
+  const CW2=320;
   const hrtIsiSvg = svgLineChart(m.isiLabels, m.isiStats.map(s=>s.hrtMean), m.isiStats.map(s=>s.hrtSD), CW2, CH);
   const hrtIsiTable = chartTable(
     ['', ...m.isiLabels],
@@ -2076,7 +2076,7 @@ function showACPTReport(r) {
         ${coBlockSvg}${coBlockTable}
       </div>
     </div>
-    <div class="chart-row" style="margin-top:20px">
+    <div class="chart-row" style="margin-top:12px">
       <div class="chart-box">
         <div class="chart-title">HRT by ISI</div>
         ${hrtIsiSvg}${hrtIsiTable}
@@ -2092,12 +2092,13 @@ function showACPTReport(r) {
     </div>
   </div>`;
   const CHART_CSS = `
-    .chart-row{display:flex;flex-wrap:wrap;gap:16px}
-    .chart-box{flex:1;min-width:200px;background:#FDFAF6;border-radius:10px;padding:14px 12px}
-    .chart-title{font-size:.82rem;font-weight:700;color:#5C3A1E;margin-bottom:8px;text-align:center}
-    .ct{width:100%;border-collapse:collapse;font-size:.75rem;margin-top:10px}
-    .ct th{background:#F8F2EA;padding:4px 8px;text-align:center;font-weight:700;color:#7a6052}
-    .ct td{padding:4px 8px;text-align:center;border-top:1px solid #F5EEE6}
+    .chart-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .chart-box{background:#FDFAF6;border-radius:10px;padding:12px 10px;overflow:hidden;page-break-inside:avoid}
+    .chart-title{font-size:.78rem;font-weight:700;color:#5C3A1E;margin-bottom:6px;text-align:center}
+    .ct{width:100%;border-collapse:collapse;font-size:.7rem;margin-top:8px}
+    .ct th{background:#F8F2EA;padding:3px 5px;text-align:center;font-weight:700;color:#7a6052}
+    .ct td{padding:3px 5px;text-align:center;border-top:1px solid #F5EEE6}
+    @media print{.chart-row{grid-template-columns:repeat(3,1fr)}.chart-box{page-break-inside:avoid}}
   `;
 
   const ageGroup = getAgeGroup(r.age);
@@ -2156,27 +2157,34 @@ function showACPTReport(r) {
 <html lang="zh-TW"><head><meta charset="UTF-8">
 <title>ACPT 分析報告 — ${r.user_name}</title>
 <style>
-  body{font-family:'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;margin:0;padding:24px;background:#F5EEE6;color:#2C1A0E;}
-  .wrap{max-width:900px;margin:0 auto;}
-  .card{background:#fff;border-radius:14px;padding:28px 32px;margin-bottom:20px;box-shadow:0 2px 16px rgba(0,0,0,.08);}
-  h1{font-size:1.4rem;color:#5C3A1E;margin:0 0 4px}
-  h2{font-size:1.05rem;color:#5C3A1E;margin:0 0 14px;border-bottom:2px solid #F5EEE6;padding-bottom:6px}
-  .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px 20px;margin-top:14px}
-  .info-item label{display:block;font-size:.75rem;color:#7a6052;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-  .info-item span{font-size:1rem;font-weight:700}
-  .detect-box{background:#F5EEE6;border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;gap:32px;flex-wrap:wrap}
-  .detect-item label{font-size:.78rem;color:#7a6052;font-weight:600;display:block}
-  .detect-item span{font-size:1.25rem;font-weight:800;color:#E65C00}
-  .raw-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:0}
-  .rs{background:#FFF8E7;border-radius:8px;padding:10px 12px;text-align:center}
-  .rs label{display:block;font-size:.72rem;color:#7a6052;font-weight:600}
-  .rs span{display:block;font-size:1.1rem;font-weight:800;color:#2C1A0E}
-  table{width:100%;border-collapse:collapse;font-size:0.88rem}
+  body{font-family:'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;margin:0;padding:16px;background:#F5EEE6;color:#2C1A0E;}
+  .wrap{max-width:794px;margin:0 auto;}
+  .card{background:#fff;border-radius:14px;padding:20px 24px;margin-bottom:16px;box-shadow:0 2px 16px rgba(0,0,0,.08);page-break-inside:avoid;}
+  h1{font-size:1.3rem;color:#5C3A1E;margin:0 0 4px}
+  h2{font-size:1rem;color:#5C3A1E;margin:0 0 12px;border-bottom:2px solid #F5EEE6;padding-bottom:5px}
+  .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px 16px;margin-top:12px}
+  .info-item label{display:block;font-size:.72rem;color:#7a6052;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .info-item span{font-size:.95rem;font-weight:700}
+  .detect-box{background:#F5EEE6;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .detect-item label{font-size:.75rem;color:#7a6052;font-weight:600;display:block}
+  .detect-item span{font-size:1.1rem;font-weight:800;color:#E65C00}
+  .raw-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:0}
+  .rs{background:#FFF8E7;border-radius:8px;padding:8px 10px;text-align:center}
+  .rs label{display:block;font-size:.68rem;color:#7a6052;font-weight:600}
+  .rs span{display:block;font-size:1rem;font-weight:800;color:#2C1A0E}
+  table{width:100%;border-collapse:collapse;font-size:0.82rem}
   thead tr{background:#F8F2EA}
-  thead th{padding:10px 12px;text-align:left;font-weight:700;color:#7a6052;font-size:0.78rem;text-transform:uppercase;letter-spacing:.04em}
+  thead th{padding:8px 10px;text-align:left;font-weight:700;color:#7a6052;font-size:0.75rem;text-transform:uppercase;letter-spacing:.04em}
   tbody tr{border-bottom:1px solid #F5EEE6}
   tbody tr:hover{background:#FDFAF6}
-  @media print{body{background:#fff;padding:0}.card{box-shadow:none;border:1px solid #eee}.no-print{display:none}}
+  @media print{
+    @page{size:A4;margin:12mm 14mm}
+    body{background:#fff;padding:0;font-size:11px}
+    .wrap{max-width:100%}
+    .card{box-shadow:none;border:1px solid #eee;padding:14px 16px;margin-bottom:10px;page-break-inside:avoid}
+    .no-print{display:none}
+    .raw-stats{grid-template-columns:repeat(5,1fr)}
+  }
   .btn-print{display:inline-block;padding:10px 24px;background:#E65C00;color:#fff;border:none;border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer;margin-bottom:16px}
   ${CHART_CSS}
 </style></head><body>
