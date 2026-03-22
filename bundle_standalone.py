@@ -78,7 +78,8 @@ html_body = """
       <p class="demo-label">✅ 看到其他動物時 <strong>按空白鍵</strong>：</p>
       <div class="demo-row" id="demo-targets"></div>
     </div>
-    <button id="btn-start-task" class="btn-primary">我準備好了，開始測驗 →</button>
+    <button id="btn-practice" class="btn-secondary" style="width:100%;margin-top:8px;">🐾 開始練習（1 分鐘）</button>
+    <button id="btn-start-task" class="btn-primary" style="margin-top:8px;">我準備好了，開始測驗 →</button>
   </div>
 </section>
 
@@ -98,7 +99,10 @@ html_body = """
   <div class="zoo-stage">
     <div class="stage-top">
       <div class="stage-frame" id="stage-frame">
-        <canvas id="task-canvas" width="320" height="320"></canvas>
+        <div id="stimulus-display" style="display:none;
+          width:100%;height:100%;flex-direction:column;
+          align-items:center;justify-content:center;
+          border-radius:12px;cursor:pointer;"></div>
       </div>
     </div>
     <div class="stage-leg"></div>
@@ -115,7 +119,7 @@ html_body = """
       <span class="hud-val" id="hud-phase">—</span>
     </div>
   </div>
-  <div class="task-hint">按 <kbd>空白鍵</kbd> 回應目標動物</div>
+  <div class="task-hint" id="task-hint">按 <kbd>空白鍵</kbd> 回應目標動物</div>
 </section>
 
 <!-- ═══ Screen 5: Results ═══ -->
@@ -129,6 +133,7 @@ html_body = """
     </div>
     <div class="results-actions">
       <button id="btn-export" class="btn-primary">📥 下載 Excel 報告</button>
+      <button id="btn-export-csv" class="btn-secondary">📄 下載 CSV 原始資料</button>
       <button id="btn-new" class="btn-secondary">重新測驗</button>
     </div>
     <p class="timing-note" id="timing-note"></p>
@@ -151,30 +156,42 @@ html = f"""<!DOCTYPE html>
 <body>
 {html_body}
 
-<!-- SheetJS (inlined) -->
+<!-- Everything in ONE <script> block to avoid Safari "Script error." sanitisation -->
 <script>
-{xlsx_js}
-</script>
+(function() {{
+  // ── Visible error reporter ────────────────────────────────────────
+  function showStartupError(msg, detail) {{
+    document.body.innerHTML =
+      '<div style="position:fixed;inset:0;background:#c0392b;color:#fff;' +
+      'padding:32px;font-family:monospace;font-size:14px;overflow:auto;z-index:9999">' +
+      '<h2 style="margin:0 0 12px">Startup Error</h2>' +
+      '<b>' + msg + '</b><br><br>' +
+      '<pre style="white-space:pre-wrap">' + (detail||'') + '</pre></div>';
+  }}
 
-<!-- wasm-bindgen glue (no-modules) -->
-<script>
-{wasm_js}
-</script>
+  try {{
 
-<!-- Boot: decode WASM base64 → init wasm_bindgen → run app -->
-<script>
-(async () => {{
-  // Decode inlined WASM
-  const b64 = "{wasm_b64}";
-  const bin = atob(b64);
-  const buf = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    // ── 1. SheetJS ────────────────────────────────────────────────
+    {xlsx_js}
 
-  // Initialise wasm_bindgen with the buffer (no fetch needed)
-  await wasm_bindgen(buf);
+    // ── 2. wasm-bindgen glue (no-modules) ────────────────────────
+    {wasm_js}
 
-  // Now run the app
-  {app_js}
+    // ── 3. Decode WASM base64 → Uint8Array ───────────────────────
+    var b64 = "{wasm_b64}";
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    // ── 4. Synchronous WASM init (no fetch, works from file://) ──
+    wasm_bindgen.initSync({{ module: bytes }});
+
+    // ── 5. App ────────────────────────────────────────────────────
+    {app_js}
+
+  }} catch(e) {{
+    showStartupError('Caught exception', e.stack || e.message || String(e));
+  }}
 }})();
 </script>
 

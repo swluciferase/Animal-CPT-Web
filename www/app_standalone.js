@@ -4,10 +4,55 @@
  * Expects window.wasm_bindgen already initialised before this script runs.
  */
 
-const ANIMAL_EMOJI = ['🐱','🐶','🐦','🐰','🐘','🦁','🐒','🐻','🦌','🐟'];
-const ANIMAL_ZH    = ['貓','狗','鳥','兔子','象','獅子','猴子','熊','鹿','魚'];
-const ANIMAL_EN    = ['Cat','Dog','Bird','Rabbit','Elephant','Lion','Monkey','Bear','Deer','Fish'];
-const NON_TARGET   = 0;
+window.onerror = function(msg, src, line, col, err) {
+  var o = document.getElementById('err-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'err-overlay';
+    o.style.cssText = 'position:fixed;inset:0;background:#c0392b;color:white;' +
+      'z-index:9999;padding:32px;font-family:monospace;font-size:14px;overflow-y:auto;';
+    document.body.appendChild(o);
+  }
+  var detail = (err && err.stack) ? err.stack : ('at ' + src + ':' + line);
+  o.innerHTML = '<h2 style="margin:0 0 12px">Error</h2>' +
+    '<b>Uncaught: ' + msg + '</b><br><br>' +
+    '<pre style="white-space:pre-wrap">' + detail + '</pre>';
+  return true;
+};
+window.onunhandledrejection = function(e) {
+  var o = document.getElementById('err-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'err-overlay';
+    o.style.cssText = 'position:fixed;inset:0;background:#c0392b;color:white;' +
+      'z-index:9999;padding:32px;font-family:monospace;font-size:14px;overflow-y:auto;';
+    document.body.appendChild(o);
+  }
+  var detail = e.reason && e.reason.stack ? e.reason.stack : String(e.reason);
+  o.innerHTML = '<h2 style="margin:0 0 12px">Error</h2>' +
+    '<b>Unhandled Promise</b><br><br>' +
+    '<pre style="white-space:pre-wrap">' + detail + '</pre>';
+};
+
+// Adult version (16 animals, codes 0-15)
+// 0=大象 1=小孩 2=烏鴉 3=牛 4=狗 5=狼 6=猴子 7=獅子 8=羊 9=蛇 10=豬 11=貓(*) 12=雞 13=青蛙 14=鴨子 15=麻雀
+const ADULT_EMOJI = ['🐘','👧','🐦','🐮','🐶','🐺','🐒','🦁','🐑','🐍','🐷','🐱','🐔','🐸','🦆','🐦'];
+const ADULT_ZH    = ['大象','小孩','烏鴉','牛','狗','狼','猴子','獅子','羊','蛇','豬','貓','雞','青蛙','鴨子','麻雀'];
+const ADULT_EN    = ['Elephant','Child','Crow','Cow','Dog','Wolf','Monkey','Lion','Sheep','Snake','Pig','Cat','Chicken','Frog','Duck','Sparrow'];
+const ADULT_NON_TARGET = 11; // 貓
+
+// Child version (11 animals, codes 0-10)
+// 0=bird 1=cat(*) 2=chicken 3=cow 4=dog 5=duck 6=elephant 7=monkey 8=pig 9=sheep 10=tiger
+const CHILD_EMOJI = ['🐦','🐱','🐔','🐮','🐶','🦆','🐘','🐒','🐷','🐑','🐯'];
+const CHILD_ZH    = ['鳥','貓','雞','牛','狗','鴨子','大象','猴子','豬','羊','老虎'];
+const CHILD_EN    = ['Bird','Cat','Chicken','Cow','Dog','Duck','Elephant','Monkey','Pig','Sheep','Tiger'];
+const CHILD_NON_TARGET = 1; // cat
+
+// Helpers — set after task is created
+let ANIMAL_EMOJI = ADULT_EMOJI;
+let ANIMAL_ZH    = ADULT_ZH;
+let ANIMAL_EN    = ADULT_EN;
+let NON_TARGET   = ADULT_NON_TARGET;
 const RESPONSE_WINDOW_MS = 1000;
 const FLASH_MS = 150;
 
@@ -52,7 +97,15 @@ $('form-register').addEventListener('submit', e => {
   totalTrials = task.get_trial_count();
   trials      = JSON.parse(task.get_all_trials_json());
 
-  buildInstructions(task.is_child_version());
+  const isChild = task.is_child_version();
+  if (isChild) {
+    ANIMAL_EMOJI = CHILD_EMOJI; ANIMAL_ZH = CHILD_ZH;
+    ANIMAL_EN = CHILD_EN; NON_TARGET = CHILD_NON_TARGET;
+  } else {
+    ANIMAL_EMOJI = ADULT_EMOJI; ANIMAL_ZH = ADULT_ZH;
+    ANIMAL_EN = ADULT_EN; NON_TARGET = ADULT_NON_TARGET;
+  }
+  buildInstructions(isChild);
   showScreen('screen-instructions');
 });
 
@@ -79,10 +132,10 @@ function buildInstructions(isChild) {
       <p>全程共 <strong>${totalTrials} 個試次</strong>，分暖身、主要及緩和三個階段。</p>`;
   }
 
-  const maxAnimal = isChild ? 5 : 10;
   const row = $('demo-targets');
   row.innerHTML = '';
-  for (let i = 1; i < maxAnimal; i++) {
+  for (let i = 0; i < ANIMAL_EMOJI.length; i++) {
+    if (i === NON_TARGET) continue;  // skip the non-target (already shown above)
     const div = document.createElement('div');
     div.className = 'demo-target-item';
     div.title = `${ANIMAL_ZH[i]} (${ANIMAL_EN[i]})`;
@@ -90,6 +143,11 @@ function buildInstructions(isChild) {
     row.appendChild(div);
   }
 }
+
+$('btn-practice').addEventListener('click', () => {
+  showScreen('screen-countdown');
+  runCountdown(3, startPractice);
+});
 
 $('btn-start-task').addEventListener('click', () => {
   showScreen('screen-countdown');
@@ -106,65 +164,259 @@ function runCountdown(n, cb) {
 }
 
 // ─────────────────────────────────────────────
-// Task
+// Practice mode (1 minute, all animals, no data recording)
 // ─────────────────────────────────────────────
-const canvas = $('task-canvas');
-const ctx    = canvas.getContext('2d');
+let practiceMode    = false;
+let practiceTimeout = null;
+let practiceHudTimer= null;
+let practiceEndTime = 0;
+let practiceQueue   = [];
 
-// Pre-load animal images (www/assets/animals/0.png … 9.png)
-const animalImages = {};
-for (let i = 0; i < 10; i++) {
-  const img = new Image();
-  img.src = `assets/animals/${i}.png`;
-  animalImages[i] = img;
+function shuffled(n) {
+  const a = Array.from({ length: n }, (_, i) => i);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
-function drawAnimal(code) {
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#FFF8E7';
-  ctx.fillRect(0, 0, W, H);
+function startPractice() {
+  practiceMode = true;
+  showScreen('screen-task');
 
-  const img = animalImages[code];
-  if (img && img.complete && img.naturalWidth > 0) {
-    const size = Math.min(W, H) * 0.78;
-    ctx.drawImage(img, (W - size) / 2, (H - size) / 2, size, size);
-  } else {
-    ctx.font = `${Math.floor(Math.min(W, H) * 0.62)}px serif`;
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(ANIMAL_EMOJI[code], W / 2, H / 2 + 8);
-  }
+  const isTouch = navigator.maxTouchPoints > 0;
+  $('task-hint').innerHTML = isTouch
+    ? '點擊螢幕回應目標動物（練習）'
+    : '按 <kbd>空白鍵</kbd> 回應目標動物（練習）';
+
+  awaitingResponse = false;
+  currentTrialIdx  = -1;
+  responseGiven    = false;
+  clearCanvas();
+
+  practiceQueue   = shuffled(ANIMAL_EMOJI.length);
+  practiceEndTime = performance.now() + 60000;
+
+  updatePracticeHUD();
+  practiceHudTimer = setInterval(updatePracticeHUD, 500);
+
+  document.addEventListener('keydown',   onPracticeKey);
+  document.addEventListener('keyup',     onKeyup);
+  document.addEventListener('touchstart', onPracticeTouch, { passive: false });
+
+  runPracticeTrial();
+}
+
+function updatePracticeHUD() {
+  const secs = Math.max(0, Math.ceil((practiceEndTime - performance.now()) / 1000));
+  $('hud-remaining').textContent = secs + 's';
+  $('hud-phase').textContent = '練習';
+}
+
+function runPracticeTrial() {
+  if (!practiceMode) return;
+  if (performance.now() >= practiceEndTime) { endPractice(); return; }
+
+  if (practiceQueue.length === 0) practiceQueue = shuffled(ANIMAL_EMOJI.length);
+  const code = practiceQueue.shift();
+
+  const isChild = task ? task.is_child_version() : true;
+  const isi = isChild ? 1500 : 1000;
+
+  clearCanvas();
+  practiceTimeout = setTimeout(() => {
+    if (!practiceMode) return;
+    if (performance.now() >= practiceEndTime) { endPractice(); return; }
+    drawAnimal(code);
+    practiceTimeout = setTimeout(() => {
+      if (!practiceMode) return;
+      clearCanvas();
+      runPracticeTrial();
+    }, 500);
+  }, isi);
+}
+
+function onPracticeKey(e) {
+  if (e.code !== 'Space' || e.repeat) return;
+  e.preventDefault();
+  flashPracticeFrame();
+}
+
+function onPracticeTouch(e) {
+  if (e.touches.length > 1) return;
+  const tag = e.target.tagName;
+  if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' || tag === 'A') return;
+  e.preventDefault();
+  flashPracticeFrame();
+}
+
+function flashPracticeFrame() {
+  const frame = $('stage-frame');
+  frame.classList.add('flash-green');
+  setTimeout(() => frame.classList.remove('flash-green'), FLASH_MS);
+}
+
+function endPractice() {
+  practiceMode = false;
+  if (practiceTimeout)  { clearTimeout(practiceTimeout);   practiceTimeout  = null; }
+  if (practiceHudTimer) { clearInterval(practiceHudTimer); practiceHudTimer = null; }
+  document.removeEventListener('keydown',    onPracticeKey);
+  document.removeEventListener('keyup',      onKeyup);
+  document.removeEventListener('touchstart', onPracticeTouch);
+
+  // Show "practice done" message for 2 s, then back to instructions
+  const div = $('stimulus-display');
+  div.style.background = '#C8E6C9';
+  div.innerHTML = '<div class="stim-emoji">✅</div><div class="stim-label">練習完成！</div>';
+  div.style.display = 'flex';
+
+  setTimeout(() => {
+    clearCanvas();
+    $('hud-remaining').textContent = '—';
+    $('hud-phase').textContent = '—';
+    showScreen('screen-instructions');
+  }, 2000);
+}
+
+// ─────────────────────────────────────────────
+// Task
+// ─────────────────────────────────────────────
+// Per-animal background colours
+const ANIMAL_BG = [
+  '#FFCDD2','#BBDEFB','#C8E6C9','#FFF9C4','#E1BEE7',
+  '#FFE0B2','#B2EBF2','#F8BBD9','#DCEDC8','#B2DFDB',
+  '#FCE4EC','#F3E5F5','#E8EAF6','#E0F7FA','#FFF8E1','#F1F8E9',
+];
+
+function drawAnimal(code) {
+  const div = $('stimulus-display');
+  div.style.background = ANIMAL_BG[code] || '#E3F2FD';
+  div.innerHTML =
+    '<div class="stim-emoji">' + ANIMAL_EMOJI[code] + '</div>' +
+    '<div class="stim-label">' + ANIMAL_ZH[code] + '</div>';
+  div.style.display = 'flex';
 }
 
 function clearCanvas() {
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#FFF8E7';
-  ctx.fillRect(0, 0, W, H);
-  const cx = W / 2, cy = H / 2;
-  ctx.strokeStyle = '#CCC';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy);
-  ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20);
-  ctx.stroke();
+  const div = $('stimulus-display');
+  div.style.display = 'none';
+  div.innerHTML = '<div class="stim-cross">＋</div>';
+}
+
+// ─────────────────────────────────────────────
+// Error display (visible on screen, not just console)
+// ─────────────────────────────────────────────
+function showError(msg, detail) {
+  let o = document.getElementById('err-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'err-overlay';
+    Object.assign(o.style, {
+      position:'fixed', inset:'0', background:'#c0392b', color:'white',
+      zIndex:'9999', padding:'32px', fontFamily:'monospace', fontSize:'14px',
+      overflowY:'auto',
+    });
+    document.body.appendChild(o);
+  }
+  o.innerHTML = '<h2 style="margin:0 0 12px">Error</h2>' +
+    '<b>' + msg + '</b><br><br>' +
+    '<pre style="white-space:pre-wrap">' + (detail||'') + '</pre>';
 }
 
 // Drift-compensated scheduler
 let scheduleBase   = 0;
 let scheduleOffset = 0;
+let trialGeneration = 0;   // incremented on pause-resume/abort to cancel stale callbacks
 
 function scheduleIn(delayMs, cb) {
+  const gen      = trialGeneration;
   const elapsed  = performance.now() - scheduleBase;
   const drift    = elapsed - scheduleOffset;
   const adjusted = Math.max(0, delayMs - drift);
   scheduleOffset += delayMs;
-  setTimeout(cb, adjusted);
+  setTimeout(() => {
+    if (trialGeneration !== gen) return;  // stale — ignore
+    try { cb(); }
+    catch(e) { showError('scheduleIn callback error', e.stack || e.message || String(e)); }
+  }, adjusted);
+}
+
+// ─────────────────────────────────────────────
+// Pause / resume / abort
+// ─────────────────────────────────────────────
+let paused       = false;
+let pauseOverlay = null;
+
+function ensurePauseOverlay() {
+  if (pauseOverlay) return;
+  pauseOverlay = document.createElement('div');
+  Object.assign(pauseOverlay.style, {
+    position: 'fixed', inset: '0', zIndex: '500',
+    background: 'rgba(0,0,0,0.65)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  });
+  pauseOverlay.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:40px 48px;' +
+    'text-align:center;max-width:320px;width:90vw;box-shadow:0 8px 40px rgba(0,0,0,.3)">' +
+    '<div style="font-size:2.8rem;margin-bottom:8px">⏸</div>' +
+    '<h2 style="color:#2C1A0E;margin-bottom:24px;font-size:1.4rem">測驗已暫停</h2>' +
+    '<button id="btn-resume" style="display:block;width:100%;padding:13px;margin-bottom:12px;' +
+    'background:#E65C00;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer">' +
+    '▶ 繼續測驗</button>' +
+    '<button id="btn-abort" style="display:block;width:100%;padding:13px;' +
+    'background:#EEE;color:#333;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer">' +
+    '✕ 中斷，回主畫面</button>' +
+    '<p style="margin-top:16px;font-size:0.78rem;color:#999">按 P 繼續</p>' +
+    '</div>';
+  document.body.appendChild(pauseOverlay);
+  document.getElementById('btn-resume').onclick = resumeTask;
+  document.getElementById('btn-abort').onclick  = abortTask;
+}
+
+function pauseTask() {
+  if (paused || practiceMode) return;
+  paused = true;
+  if (responseTimer) { clearTimeout(responseTimer); responseTimer = null; }
+  awaitingResponse = false;
+  ensurePauseOverlay();
+  pauseOverlay.style.display = 'flex';
+}
+
+function resumeTask() {
+  if (!paused) return;
+  paused = false;
+  pauseOverlay.style.display = 'none';
+  trialGeneration++;          // invalidate all stale scheduleIn callbacks
+  scheduleBase   = performance.now();
+  scheduleOffset = 0;
+  clearCanvas();
+  runTrial(currentIdx);       // restart current trial from its ISI
+}
+
+function abortTask() {
+  paused = false;
+  trialGeneration++;
+  if (pauseOverlay) pauseOverlay.style.display = 'none';
+  if (responseTimer) { clearTimeout(responseTimer); responseTimer = null; }
+  document.removeEventListener('keydown',   onKeydown);
+  document.removeEventListener('keyup',     onKeyup);
+  document.removeEventListener('touchstart', onTouch);
+  location.reload();
 }
 
 function startTask() {
+  try {
   showScreen('screen-task');
+
+  // Update hint based on input mode
+  const isTouch = navigator.maxTouchPoints > 0;
+  $('task-hint').innerHTML = isTouch
+    ? '點擊螢幕回應目標動物'
+    : '按 <kbd>空白鍵</kbd> 回應目標動物';
+
+  paused         = false;
+  trialGeneration++;
   taskStartMs    = performance.now();
   scheduleBase   = taskStartMs;
   scheduleOffset = 0;
@@ -174,9 +426,13 @@ function startTask() {
   updateHUD();
   clearCanvas();
 
-  document.addEventListener('keydown', onKeydown);
-  document.addEventListener('keyup',   onKeyup);
+  document.addEventListener('keydown',   onKeydown);
+  document.addEventListener('keyup',     onKeyup);
+  document.addEventListener('touchstart', onTouch, { passive: false });
   runTrial(0);
+  } catch(e) {
+    showError('startTask error', e.stack || e.message || String(e));
+  }
 }
 
 function runTrial(idx) {
@@ -190,10 +446,21 @@ function runTrial(idx) {
 
   scheduleIn(trial.isi_ms, () => {
     requestAnimationFrame(() => {
-      drawAnimal(trial.stimulus_code);
+      try {
+        drawAnimal(trial.stimulus_code);
+      } catch(e) {
+        showError('drawAnimal failed (code=' + trial.stimulus_code + ')', e.stack || e.message || String(e));
+        return;
+      }
 
-      const onsetMs = performance.now();
-      task.record_stimulus_onset(idx, onsetMs);
+      let onsetMs;
+      try {
+        onsetMs = performance.now();
+        task.record_stimulus_onset(idx, onsetMs);
+      } catch(e) {
+        showError('WASM record_stimulus_onset failed (trial=' + idx + ')', e.stack || e.message || String(e));
+        return;
+      }
 
       currentTrialIdx  = idx;
       awaitingResponse = true;
@@ -206,17 +473,27 @@ function runTrial(idx) {
       });
 
       responseTimer = setTimeout(() => {
-        awaitingResponse = false;
-        task.finalize_trial(idx);
-        scheduleIn(0, () => runTrial(idx + 1));
+        try {
+          awaitingResponse = false;
+          task.finalize_trial(idx);
+          scheduleIn(0, () => runTrial(idx + 1));
+        } catch(e) {
+          showError('Trial finalize error (trial=' + idx + ')', e.stack || e.message || String(e));
+        }
       }, windowMs);
     });
   });
 }
 
 function onKeydown(e) {
+  if (e.code === 'KeyP' && !e.repeat) {
+    e.preventDefault();
+    if (paused) resumeTask(); else pauseTask();
+    return;
+  }
   if (e.code !== 'Space' || e.repeat) return;
   e.preventDefault();
+  if (paused) return;
   const pressMs = performance.now();
   if (!awaitingResponse || currentTrialIdx < 0 || responseGiven) return;
   responseGiven = true;
@@ -235,6 +512,28 @@ function onKeydown(e) {
 
 function onKeyup(e) { if (e.code === 'Space') e.preventDefault(); }
 
+function onTouch(e) {
+  // Ignore multi-touch (pinch/zoom) and taps on buttons/inputs
+  if (e.touches.length > 1) return;
+  const tag = e.target.tagName;
+  if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' || tag === 'A') return;
+  e.preventDefault();
+  const pressMs = performance.now();
+  if (!awaitingResponse || currentTrialIdx < 0 || responseGiven) return;
+  responseGiven = true;
+
+  const rtype = task.record_response(currentTrialIdx, pressMs);
+
+  const frame = $('stage-frame');
+  if (rtype === 'hit') {
+    frame.classList.add('flash-green');
+    setTimeout(() => frame.classList.remove('flash-green'), FLASH_MS);
+  } else if (rtype === 'false_alarm' || rtype === 'too_fast') {
+    frame.classList.add('flash-red');
+    setTimeout(() => frame.classList.remove('flash-red'), FLASH_MS);
+  }
+}
+
 function updateHUD() {
   const trial = trials[currentIdx];
   $('hud-remaining').textContent = totalTrials - currentIdx;
@@ -243,8 +542,9 @@ function updateHUD() {
 }
 
 function endTask() {
-  document.removeEventListener('keydown', onKeydown);
-  document.removeEventListener('keyup',   onKeyup);
+  document.removeEventListener('keydown',   onKeydown);
+  document.removeEventListener('keyup',     onKeyup);
+  document.removeEventListener('touchstart', onTouch);
   if (responseTimer) clearTimeout(responseTimer);
 
   task.set_timing_notes(buildTimingNotes());
@@ -361,8 +661,9 @@ function renderResults(r) {
     '⏱ 刺激呈現時間在 requestAnimationFrame 回調中記錄，與實際顯示時間差約 0–16.7 ms（一幀）。' +
     '按鍵時間在 keydown 事件中記錄，鍵盤硬體延遲約 1–15 ms。詳情見 Excel 計時說明工作表。';
 
-  $('btn-export').onclick = () => exportExcel(r);
-  $('btn-new').onclick    = () => location.reload();
+  $('btn-export').onclick     = () => exportExcel(r);
+  $('btn-export-csv').onclick = () => exportLegacyCSV(r);
+  $('btn-new').onclick        = () => location.reload();
 }
 
 // ─────────────────────────────────────────────
@@ -468,4 +769,75 @@ function exportExcel(r) {
   XLSX.utils.book_append_sheet(wb, wsNote, '計時說明');
 
   XLSX.writeFile(wb, `ACPT_${r.test_date}_${userData.pid || r.user_name}.xlsx`);
+}
+
+// ─────────────────────────────────────────────
+// Legacy CSV export (matches _PK_ / _PA_ format from original Unity system)
+// Format:
+//   Row 1: Username,Gender,Birthday,Testday,Mod,
+//   Row 2: <name>,<gender>,<birthday>,<timestamp>,<mod>,
+//   Row 3: Type,Event,Time(s),
+//   Data:  Picture,<code>,<time_s>,  and  Response,OnClick!!,<time_s>,
+//
+// Animal code mapping — non-target is always code 0 to match original:
+//   Child  (our→csv): bird=0→1, cat=1→0, chicken=2→2, cow=3→3, dog=4→4,
+//                     duck=5→5, elephant=6→6, monkey=7→7, pig=8→8, sheep=9→9, tiger=10→10
+//   Adult  (our→csv): 大象=0→1, 小孩=1→2, 烏鴉=2→3, 牛=3→4, 狗=4→5, 狼=5→6,
+//                     猴子=6→7, 獅子=7→8, 羊=8→9, 蛇=9→10, 豬=10→11, 貓=11→0,
+//                     雞=12→12, 青蛙=13→13, 鴨子=14→14, 麻雀=15→15
+// ─────────────────────────────────────────────
+function exportLegacyCSV(r) {
+  // Build timestamp: YYYY_MM_D_HHmmss (month zero-padded, day/hour not padded)
+  const now = new Date();
+  const yr  = now.getFullYear();
+  const mo  = String(now.getMonth() + 1).padStart(2, '0');
+  const dy  = now.getDate();
+  const hh  = now.getHours();
+  const mm  = String(now.getMinutes()).padStart(2, '0');
+  const ss  = String(now.getSeconds()).padStart(2, '0');
+  const stamp = `${yr}_${mo}_${dy}_${hh}${mm}${ss}`;
+
+  const prefix = r.is_child ? '_PK' : '_PA';
+  const mod    = r.is_child ? 'Picture_Kid' : 'Picture_Adult';
+  const filename = `${prefix}_${stamp}.csv`;
+
+  // Code remapping tables (our internal code → original Unity CSV code)
+  // Child (from KidMapping.csv): our alphabetical order → original codes
+  // our: 0=bird→10, 1=cat→0, 2=chicken→7, 3=cow→5, 4=dog→3,
+  //      5=duck→6,  6=elephant→2, 7=monkey→1, 8=pig→9, 9=sheep→8, 10=tiger→4
+  const CHILD_REMAP = [10, 0, 7, 5, 3, 6, 2, 1, 9, 8, 4];
+  // Adult: our code 11 (貓) → 0; others shifted to avoid 0; no official mapping provided yet
+  const ADULT_REMAP = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14, 15];
+  const remap = r.is_child ? CHILD_REMAP : ADULT_REMAP;
+
+  const fmt7 = v => v.toFixed(7);
+
+  const lines = [];
+  lines.push('Username,Gender,Birthday,Testday,Mod,');
+  lines.push(`${r.user_name},${userData.gender || ''},,${stamp},${mod},`);
+  lines.push('Type,Event,Time(s),');
+
+  for (const t of r.trials) {
+    if (t.stimulus_onset_ms == null) continue;
+    if (t.trial.phase !== 'main') continue;  // exclude warmup/cooldown from legacy CSV
+    const csvCode = remap[t.trial.stimulus_code] ?? t.trial.stimulus_code;
+    const onsetS  = t.stimulus_onset_ms / 1000;
+    lines.push(`Picture,${csvCode},${fmt7(onsetS)},`);
+
+    // First response (if any)
+    if (t.response_ms != null) {
+      const respS = t.response_ms / 1000;
+      lines.push(`Response,OnClick!!,${fmt7(respS)},`);
+    }
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
