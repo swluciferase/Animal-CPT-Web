@@ -33,35 +33,38 @@ html_body = """
   <div class="card">
     <div class="logo-area">
       <div class="logo-icon">🐾</div>
-      <h1>動物持續表現測驗</h1>
-      <p class="subtitle">Animal Continuous Performance Test (ACPT)</p>
+      <h1 id="logo-title">BrainQ10 CPTW 注意力評估測驗</h1>
+      <p class="subtitle" id="logo-subtitle">BrainQ10 Continuous Performance Test Web</p>
+    </div>
+    <div style="text-align:right;margin-bottom:10px;">
+      <button id="btn-lang" style="background:none;border:1.5px solid #4bb9db;color:#4bb9db;border-radius:20px;padding:4px 16px;font-size:.85rem;cursor:pointer;font-weight:700;">EN</button>
     </div>
     <form id="form-register" autocomplete="off">
       <div class="field">
-        <label for="inp-name">姓名</label>
+        <label for="inp-name" id="label-name">姓名</label>
         <input id="inp-name" type="text" placeholder="請輸入姓名" required>
       </div>
       <div class="field">
-        <label for="inp-id">受試者編號</label>
+        <label for="inp-id" id="label-pid">受試者編號</label>
         <input id="inp-id" type="text" placeholder="例：P001" required>
       </div>
       <div class="field">
-        <label for="inp-age">年齡（歲）</label>
+        <label for="inp-age" id="label-age">年齡（歲）</label>
         <input id="inp-age" type="number" min="4" max="99" placeholder="例：8" required>
       </div>
       <div class="field">
-        <label for="inp-gender">性別</label>
+        <label for="inp-gender" id="label-gender">性別</label>
         <select id="inp-gender">
-          <option value="M">男</option>
-          <option value="F">女</option>
-          <option value="O">其他</option>
+          <option value="M" id="opt-male">男</option>
+          <option value="F" id="opt-female">女</option>
+          <option value="O" id="opt-other">其他</option>
         </select>
       </div>
       <div class="field">
-        <label for="inp-note">備註（可留空）</label>
+        <label for="inp-note" id="label-note">備註（可留空）</label>
         <input id="inp-note" type="text" placeholder="例：施測地點、特殊情況等">
       </div>
-      <button type="submit" class="btn-primary">開始準備 →</button>
+      <button type="submit" class="btn-primary" id="btn-submit">開始準備 →</button>
     </form>
   </div>
 </section>
@@ -69,13 +72,13 @@ html_body = """
 <!-- ═══ Screen 2: Instructions ═══ -->
 <section id="screen-instructions" class="screen">
   <div class="card">
-    <h2>測驗說明</h2>
+    <h2 id="instr-title">測驗說明</h2>
     <div id="instructions-content"></div>
     <div class="target-demo">
-      <p class="demo-label">🎯 看到這隻動物時 <strong>不要</strong> 按鍵：</p>
+      <p class="demo-label" id="demo-label-nt">🎯 看到這隻動物時 <strong>不要</strong> 按鍵：</p>
       <div class="demo-animal non-target">🐱</div>
-      <p class="demo-name">貓 (Cat) — 非目標</p>
-      <p class="demo-label">✅ 看到其他動物時 <strong>按空白鍵</strong>：</p>
+      <p class="demo-name" id="demo-name-nt">貓 (Cat) — 非目標</p>
+      <p class="demo-label" id="demo-label-t">✅ 看到其他動物時 <strong>按空白鍵</strong>：</p>
       <div class="demo-row" id="demo-targets"></div>
     </div>
     <button id="btn-practice" class="btn-secondary" style="width:100%;margin-top:8px;">🐾 開始練習（1 分鐘）</button>
@@ -86,7 +89,7 @@ html_body = """
 <!-- ═══ Screen 3: Countdown ═══ -->
 <section id="screen-countdown" class="screen">
   <div class="countdown-wrap">
-    <p>測驗即將開始</p>
+    <p id="countdown-label">測驗即將開始</p>
     <div id="countdown-num">3</div>
   </div>
 </section>
@@ -107,15 +110,15 @@ html_body = """
     </div>
     <div class="stage-leg"></div>
     <div class="stage-base"></div>
-    <div class="stage-label">動物展示區</div>
+    <div class="stage-label" id="stage-label">動物展示區</div>
   </div>
   <div class="hud">
     <div class="hud-item">
-      <span class="hud-label">剩餘試次</span>
+      <span class="hud-label" id="hud-label-remaining">剩餘試次</span>
       <span class="hud-val" id="hud-remaining">—</span>
     </div>
     <div class="hud-item">
-      <span class="hud-label">階段</span>
+      <span class="hud-label" id="hud-label-phase">階段</span>
       <span class="hud-val" id="hud-phase">—</span>
     </div>
   </div>
@@ -125,10 +128,10 @@ html_body = """
 <!-- ═══ Screen 5: Results ═══ -->
 <section id="screen-results" class="screen">
   <div class="results-wrap">
-    <h2>測驗完成 🎉</h2>
+    <h2 id="results-title">測驗完成 🎉</h2>
     <div id="results-summary" class="results-grid"></div>
     <div class="results-blocks">
-      <h3>各時段表現</h3>
+      <h3 id="results-blocks-title">各時段表現</h3>
       <div id="results-blocks-table"></div>
     </div>
     <div class="results-actions">

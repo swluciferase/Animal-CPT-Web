@@ -56,6 +56,166 @@ let NON_TARGET   = ADULT_NON_TARGET;
 const RESPONSE_WINDOW_MS = 1000;
 const FLASH_MS = 150;
 
+// ─────────────────────────────────────────────
+// i18n — Language system
+// ─────────────────────────────────────────────
+let curLang = 'zh';
+
+const LANG = {
+  zh: {
+    logoTitle: 'BrainQ10 CPTW 注意力評估測驗',
+    logoSubtitle: 'BrainQ10 Continuous Performance Test Web',
+    langBtn: 'EN',
+    labelName: '姓名', labelPid: '受試者編號', labelAge: '年齡（歲）',
+    labelGender: '性別', labelNote: '備註（可留空）',
+    phName: '請輸入姓名', phPid: '例：P001', phAge: '例：8', phNote: '例：施測地點、特殊情況等',
+    optMale: '男', optFemale: '女', optOther: '其他',
+    btnSubmit: '開始準備 →',
+    instrTitle: '測驗說明',
+    demoLabelNt: '🎯 看到這隻動物時 <strong>不要</strong> 按鍵：',
+    demoNameNt: '貓 (Cat) — 非目標',
+    demoLabelT: '✅ 看到其他動物時 <strong>按空白鍵</strong>：',
+    btnPractice: '🐾 開始練習（1 分鐘）',
+    btnStartTask: '我準備好了，開始測驗 →',
+    countdownLabel: '測驗即將開始',
+    stageLabel: '動物展示區',
+    hudRemaining: '剩餘試次', hudPhase: '階段',
+    taskHintSpace: '按 <kbd>空白鍵</kbd> 回應目標動物',
+    taskHintTouch: '點擊螢幕回應目標動物',
+    taskHintSpacePrac: '按 <kbd>空白鍵</kbd> 回應目標動物（練習）',
+    taskHintTouchPrac: '點擊螢幕回應目標動物（練習）',
+    phaseWarmup: '暖身', phaseMain: '主要', phaseCooldown: '緩和', phasePractice: '練習',
+    pauseTitle: '測驗已暫停',
+    btnResume: '▶ 繼續測驗', btnAbort: '✕ 中斷，回主畫面', pauseHint: '按 P 繼續',
+    practiceComplete: '練習完成！',
+    resultsTitle: '測驗完成 🎉',
+    resultsBlocksTitle: '各時段表現',
+    rcMeanRT: '平均反應時間', rcSDRT: '反應時間標準差', rcMedianRT: '中位數 RT',
+    rcOmission: '遺漏錯誤率', rcCommission: '誤按錯誤率', rcPersev: '持續反應率',
+    rcHits: '正確按鍵 (Hit)', rcMisses: '遺漏 (Miss)', rcFA: '誤按 (FA)',
+    thBlock: '時段', thTrials: '試次', thHit: 'Hit', thMiss: 'Miss', thFA: 'FA',
+    thMeanRT: '平均 RT (ms)', thOmPct: '遺漏 %', thCoPct: '誤按 %',
+    btnExport: '📥 下載 Excel 報告', btnExportCSV: '📄 下載 CSV 原始資料',
+    btnReport: '📊 分析報告', btnNew: '重新測驗',
+    timingNote: '⏱ 刺激呈現時間在 requestAnimationFrame 回調中記錄，與實際顯示時間差約 0–16.7 ms（一幀）。按鍵時間在 keydown 事件中記錄，鍵盤硬體延遲約 1–15 ms。詳情見 Excel 計時說明工作表。',
+    pwTitle: '🔒 下載 Excel 報告', pwDesc: '請輸入密碼以下載完整報告',
+    pwPh: '輸入密碼', pwOk: '確認下載', pwCancel: '取消', pwErr: '密碼錯誤，請重試',
+    instrChildText: function(n) { return '<p>這個測驗很簡單，你會在螢幕上看到各種 <strong>動物</strong> 出現。</p>' +
+      '<p>每次看到動物時，除了看到 <strong>貓咪</strong> 之外，<br>' +
+      '   都要 <strong>盡快按一下空白鍵</strong>。</p>' +
+      '<p>看到貓咪的時候 <strong>不要按</strong>！</p>' +
+      '<p>記得：動物消失之後也可以按，只要在下一隻動物出現之前都算有效。</p>' +
+      '<p>共有 <strong>' + n + ' 個試次</strong>，請保持專注！</p>'; },
+    instrAdultText: function(n) { return '<p>本測驗為持續注意力評估作業。</p>' +
+      '<p>螢幕上將依序出現 <strong>動物圖案</strong>，請您在看到動物時' +
+      '   （除了 <strong>貓</strong> 之外）<strong>立即按下空白鍵</strong>。</p>' +
+      '<p>看到「貓」時請 <strong>不要按鍵</strong>。</p>' +
+      '<p>請在動物消失前盡快反應；動物消失後仍有短暫時間可以按鍵。</p>' +
+      '<p>全程共 <strong>' + n + ' 個試次</strong>，分暖身、主要及緩和三個階段。</p>'; },
+  },
+  en: {
+    logoTitle: 'BrainQ10 CPTW Attention Assessment',
+    logoSubtitle: 'BrainQ10 Continuous Performance Test Web',
+    langBtn: '中文',
+    labelName: 'Name', labelPid: 'Participant ID', labelAge: 'Age (years)',
+    labelGender: 'Gender', labelNote: 'Notes (optional)',
+    phName: 'Enter name', phPid: 'e.g. P001', phAge: 'e.g. 8', phNote: 'e.g. location, notes',
+    optMale: 'Male', optFemale: 'Female', optOther: 'Other',
+    btnSubmit: 'Proceed →',
+    instrTitle: 'Instructions',
+    demoLabelNt: '🎯 Do <strong>NOT</strong> press when you see this animal:',
+    demoNameNt: 'Cat — Non-Target',
+    demoLabelT: '✅ Press <strong>SPACEBAR</strong> for all other animals:',
+    btnPractice: '🐾 Start Practice (1 minute)',
+    btnStartTask: "I'm ready — Start Test →",
+    countdownLabel: 'Test is about to begin',
+    stageLabel: 'Animal Display',
+    hudRemaining: 'Remaining', hudPhase: 'Phase',
+    taskHintSpace: 'Press <kbd>SPACEBAR</kbd> to respond to target animals',
+    taskHintTouch: 'Tap the screen to respond to target animals',
+    taskHintSpacePrac: 'Press <kbd>SPACEBAR</kbd> to respond to target animals (Practice)',
+    taskHintTouchPrac: 'Tap the screen to respond to target animals (Practice)',
+    phaseWarmup: 'Warm-up', phaseMain: 'Main', phaseCooldown: 'Cool-down', phasePractice: 'Practice',
+    pauseTitle: 'Test Paused',
+    btnResume: '▶ Resume', btnAbort: '✕ Quit & Return', pauseHint: 'Press P to resume',
+    practiceComplete: 'Practice complete!',
+    resultsTitle: 'Test Complete 🎉',
+    resultsBlocksTitle: 'Performance by Block',
+    rcMeanRT: 'Mean RT', rcSDRT: 'RT Std Dev', rcMedianRT: 'Median RT',
+    rcOmission: 'Omission Rate', rcCommission: 'Commission Rate', rcPersev: 'Perseveration Rate',
+    rcHits: 'Hits', rcMisses: 'Misses', rcFA: 'False Alarms',
+    thBlock: 'Block', thTrials: 'Trials', thHit: 'Hit', thMiss: 'Miss', thFA: 'FA',
+    thMeanRT: 'Mean RT (ms)', thOmPct: 'Omission %', thCoPct: 'Commission %',
+    btnExport: '📥 Download Excel Report', btnExportCSV: '📄 Download CSV Data',
+    btnReport: '📊 Analysis Report', btnNew: 'Restart Test',
+    timingNote: '⏱ Stimulus onset recorded via requestAnimationFrame callback; display latency ~0–16.7 ms (one frame). Keypress time recorded at keydown event; keyboard hardware latency ~1–15 ms. See Excel timing notes sheet for details.',
+    pwTitle: '🔒 Download Excel Report', pwDesc: 'Please enter the password to download',
+    pwPh: 'Enter password', pwOk: 'Download', pwCancel: 'Cancel', pwErr: 'Incorrect password, please try again',
+    instrChildText: function(n) { return '<p>This is a simple test! You will see various <strong>animals</strong> appear on the screen.</p>' +
+      '<p>Press the <strong>spacebar</strong> as quickly as possible each time you see an animal, <em>except</em> for the <strong>Cat</strong>.</p>' +
+      '<p>When you see the Cat, do <strong>NOT</strong> press!</p>' +
+      '<p>You can still press after the animal disappears, as long as it is before the next animal appears.</p>' +
+      '<p>There are <strong>' + n + ' trials</strong> in total. Stay focused!</p>'; },
+    instrAdultText: function(n) { return '<p>This is a sustained attention test.</p>' +
+      '<p>A series of <strong>animal images</strong> will appear on screen. Press the <strong>spacebar</strong> each time you see an animal, <em>except</em> for the <strong>Cat</strong>.</p>' +
+      '<p>Do <strong>NOT</strong> press when you see the Cat.</p>' +
+      '<p>Please respond as quickly as possible; a brief response window remains after the animal disappears.</p>' +
+      '<p>There are <strong>' + n + ' trials</strong> total, divided into warm-up, main, and cool-down phases.</p>'; },
+  },
+};
+
+function t(key) { return LANG[curLang][key]; }
+
+function toggleLang() {
+  curLang = curLang === 'zh' ? 'en' : 'zh';
+  pauseOverlay = null;  // force rebuild with new language if shown
+  applyLang();
+}
+
+function applyLang() {
+  var L = LANG[curLang];
+  var el;
+  function set(id, prop, val) { el = document.getElementById(id); if (el) el[prop] = val; }
+  function setHTML(id, val) { el = document.getElementById(id); if (el) el.innerHTML = val; }
+  // Registration
+  set('logo-title', 'textContent', L.logoTitle);
+  set('logo-subtitle', 'textContent', L.logoSubtitle);
+  set('btn-lang', 'textContent', L.langBtn);
+  set('label-name', 'textContent', L.labelName);
+  set('label-pid', 'textContent', L.labelPid);
+  set('label-age', 'textContent', L.labelAge);
+  set('label-gender', 'textContent', L.labelGender);
+  set('label-note', 'textContent', L.labelNote);
+  set('inp-name', 'placeholder', L.phName);
+  set('inp-id', 'placeholder', L.phPid);
+  set('inp-age', 'placeholder', L.phAge);
+  set('inp-note', 'placeholder', L.phNote);
+  set('opt-male', 'textContent', L.optMale);
+  set('opt-female', 'textContent', L.optFemale);
+  set('opt-other', 'textContent', L.optOther);
+  set('btn-submit', 'textContent', L.btnSubmit);
+  // Instructions
+  set('instr-title', 'textContent', L.instrTitle);
+  setHTML('demo-label-nt', L.demoLabelNt);
+  set('demo-name-nt', 'textContent', L.demoNameNt);
+  setHTML('demo-label-t', L.demoLabelT);
+  set('btn-practice', 'textContent', L.btnPractice);
+  set('btn-start-task', 'textContent', L.btnStartTask);
+  // Countdown
+  set('countdown-label', 'textContent', L.countdownLabel);
+  // Task
+  set('stage-label', 'textContent', L.stageLabel);
+  set('hud-label-remaining', 'textContent', L.hudRemaining);
+  set('hud-label-phase', 'textContent', L.hudPhase);
+  // Results
+  set('results-title', 'textContent', L.resultsTitle);
+  set('results-blocks-title', 'textContent', L.resultsBlocksTitle);
+  set('btn-export', 'textContent', L.btnExport);
+  set('btn-export-csv', 'textContent', L.btnExportCSV);
+  set('btn-report', 'textContent', L.btnReport);
+  set('btn-new', 'textContent', L.btnNew);
+}
+
 let task        = null;
 let trials      = [];
 let totalTrials = 0;
@@ -70,6 +230,8 @@ let responseTimer     = null;
 let userData = {};
 
 const $ = id => document.getElementById(id);
+
+$('btn-lang').addEventListener('click', toggleLang);
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -114,28 +276,12 @@ $('form-register').addEventListener('submit', e => {
 // ─────────────────────────────────────────────
 function buildInstructions(isChild) {
   const box = $('instructions-content');
-  if (isChild) {
-    box.innerHTML = `
-      <p>這個測驗很簡單，你會在螢幕上看到各種 <strong>動物</strong> 出現。</p>
-      <p>每次看到動物時，除了看到 <strong>貓咪</strong> 之外，<br>
-         都要 <strong>盡快按一下空白鍵</strong>。</p>
-      <p>看到貓咪的時候 <strong>不要按</strong>！</p>
-      <p>記得：動物消失之後也可以按，只要在下一隻動物出現之前都算有效。</p>
-      <p>共有 <strong>${totalTrials} 個試次</strong>，請保持專注！</p>`;
-  } else {
-    box.innerHTML = `
-      <p>本測驗為持續注意力評估作業。</p>
-      <p>螢幕上將依序出現 <strong>動物圖案</strong>，請您在看到動物時
-         （除了 <strong>貓</strong> 之外）<strong>立即按下空白鍵</strong>。</p>
-      <p>看到「貓」時請 <strong>不要按鍵</strong>。</p>
-      <p>請在動物消失前盡快反應；動物消失後仍有短暫時間可以按鍵。</p>
-      <p>全程共 <strong>${totalTrials} 個試次</strong>，分暖身、主要及緩和三個階段。</p>`;
-  }
+  box.innerHTML = isChild ? t('instrChildText')(totalTrials) : t('instrAdultText')(totalTrials);
 
   const row = $('demo-targets');
   row.innerHTML = '';
   for (let i = 0; i < ANIMAL_EMOJI.length; i++) {
-    if (i === NON_TARGET) continue;  // skip the non-target (already shown above)
+    if (i === NON_TARGET) continue;
     const div = document.createElement('div');
     div.className = 'demo-target-item';
     div.title = `${ANIMAL_ZH[i]} (${ANIMAL_EN[i]})`;
@@ -186,9 +332,7 @@ function startPractice() {
   showScreen('screen-task');
 
   const isTouch = navigator.maxTouchPoints > 0;
-  $('task-hint').innerHTML = isTouch
-    ? '點擊螢幕回應目標動物（練習）'
-    : '按 <kbd>空白鍵</kbd> 回應目標動物（練習）';
+  $('task-hint').innerHTML = isTouch ? t('taskHintTouchPrac') : t('taskHintSpacePrac');
 
   awaitingResponse = false;
   currentTrialIdx  = -1;
@@ -211,7 +355,7 @@ function startPractice() {
 function updatePracticeHUD() {
   const secs = Math.max(0, Math.ceil((practiceEndTime - performance.now()) / 1000));
   $('hud-remaining').textContent = secs + 's';
-  $('hud-phase').textContent = '練習';
+  $('hud-phase').textContent = t('phasePractice');
 }
 
 function runPracticeTrial() {
@@ -268,7 +412,7 @@ function endPractice() {
   // Show "practice done" message for 2 s, then back to instructions
   const div = $('stimulus-display');
   div.style.background = '#C8E6C9';
-  div.innerHTML = '<div class="stim-emoji">✅</div><div class="stim-label">練習完成！</div>';
+  div.innerHTML = '<div class="stim-emoji">✅</div><div class="stim-label">' + t('practiceComplete') + '</div>';
   div.style.display = 'flex';
 
   setTimeout(() => {
@@ -292,9 +436,10 @@ const ANIMAL_BG = [
 function drawAnimal(code) {
   const div = $('stimulus-display');
   div.style.background = ANIMAL_BG[code] || '#E3F2FD';
+  const label = curLang === 'zh' ? ANIMAL_ZH[code] : ANIMAL_EN[code];
   div.innerHTML =
     '<div class="stim-emoji">' + ANIMAL_EMOJI[code] + '</div>' +
-    '<div class="stim-label">' + ANIMAL_ZH[code] + '</div>';
+    '<div class="stim-label">' + label + '</div>';
   div.style.display = 'flex';
 }
 
@@ -360,14 +505,14 @@ function ensurePauseOverlay() {
     '<div style="background:#fff;border-radius:16px;padding:40px 48px;' +
     'text-align:center;max-width:320px;width:90vw;box-shadow:0 8px 40px rgba(0,0,0,.3)">' +
     '<div style="font-size:2.8rem;margin-bottom:8px">⏸</div>' +
-    '<h2 style="color:#2C1A0E;margin-bottom:24px;font-size:1.4rem">測驗已暫停</h2>' +
+    '<h2 style="color:#2C1A0E;margin-bottom:24px;font-size:1.4rem">' + t('pauseTitle') + '</h2>' +
     '<button id="btn-resume" style="display:block;width:100%;padding:13px;margin-bottom:12px;' +
     'background:#E65C00;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer">' +
-    '▶ 繼續測驗</button>' +
+    t('btnResume') + '</button>' +
     '<button id="btn-abort" style="display:block;width:100%;padding:13px;' +
     'background:#EEE;color:#333;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer">' +
-    '✕ 中斷，回主畫面</button>' +
-    '<p style="margin-top:16px;font-size:0.78rem;color:#999">按 P 繼續</p>' +
+    t('btnAbort') + '</button>' +
+    '<p style="margin-top:16px;font-size:0.78rem;color:#999">' + t('pauseHint') + '</p>' +
     '</div>';
   document.body.appendChild(pauseOverlay);
   document.getElementById('btn-resume').onclick = resumeTask;
@@ -411,9 +556,7 @@ function startTask() {
 
   // Update hint based on input mode
   const isTouch = navigator.maxTouchPoints > 0;
-  $('task-hint').innerHTML = isTouch
-    ? '點擊螢幕回應目標動物'
-    : '按 <kbd>空白鍵</kbd> 回應目標動物';
+  $('task-hint').innerHTML = isTouch ? t('taskHintTouch') : t('taskHintSpace');
 
   paused         = false;
   trialGeneration++;
@@ -537,7 +680,7 @@ function onTouch(e) {
 function updateHUD() {
   const trial = trials[currentIdx];
   $('hud-remaining').textContent = totalTrials - currentIdx;
-  const phaseMap = { warmup: '暖身', main: '主要', cooldown: '緩和' };
+  const phaseMap = { warmup: t('phaseWarmup'), main: t('phaseMain'), cooldown: t('phaseCooldown') };
   $('hud-phase').textContent = trial ? (phaseMap[trial.phase] || trial.phase) : '—';
 }
 
@@ -624,15 +767,15 @@ function saveToLocalStorage(results) {
 // ─────────────────────────────────────────────
 function renderResults(r) {
   const summary = [
-    { val: r.mean_rt_ms.toFixed(1) + ' ms',  label: '平均反應時間' },
-    { val: r.sd_rt_ms.toFixed(1)  + ' ms',   label: '反應時間標準差' },
-    { val: r.median_rt_ms.toFixed(1) + ' ms', label: '中位數 RT' },
-    { val: r.omission_rate_pct.toFixed(1) + '%',   label: '遺漏錯誤率' },
-    { val: r.commission_rate_pct.toFixed(1) + '%',  label: '誤按錯誤率' },
-    { val: r.perseveration_rate_pct.toFixed(1) + '%', label: '持續反應率' },
-    { val: r.hits,         label: '正確按鍵 (Hit)' },
-    { val: r.misses,       label: '遺漏 (Miss)' },
-    { val: r.false_alarms, label: '誤按 (FA)' },
+    { val: r.mean_rt_ms.toFixed(1) + ' ms',              label: t('rcMeanRT') },
+    { val: r.sd_rt_ms.toFixed(1)  + ' ms',               label: t('rcSDRT') },
+    { val: r.median_rt_ms.toFixed(1) + ' ms',            label: t('rcMedianRT') },
+    { val: r.omission_rate_pct.toFixed(1) + '%',         label: t('rcOmission') },
+    { val: r.commission_rate_pct.toFixed(1) + '%',       label: t('rcCommission') },
+    { val: r.perseveration_rate_pct.toFixed(1) + '%',    label: t('rcPersev') },
+    { val: r.hits,         label: t('rcHits') },
+    { val: r.misses,       label: t('rcMisses') },
+    { val: r.false_alarms, label: t('rcFA') },
   ];
 
   $('results-summary').innerHTML = summary.map(s =>
@@ -643,8 +786,8 @@ function renderResults(r) {
   ).join('');
 
   const thead = `<tr>
-    <th>時段</th><th>試次</th><th>Hit</th><th>Miss</th><th>FA</th>
-    <th>平均 RT (ms)</th><th>遺漏 %</th><th>誤按 %</th></tr>`;
+    <th>${t('thBlock')}</th><th>${t('thTrials')}</th><th>${t('thHit')}</th><th>${t('thMiss')}</th><th>${t('thFA')}</th>
+    <th>${t('thMeanRT')}</th><th>${t('thOmPct')}</th><th>${t('thCoPct')}</th></tr>`;
   const tbody = r.block_stats.map(b =>
     `<tr>
       <td>${b.block}</td><td>${b.trials}</td>
@@ -657,9 +800,7 @@ function renderResults(r) {
   $('results-blocks-table').innerHTML =
     `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
 
-  $('timing-note').textContent =
-    '⏱ 刺激呈現時間在 requestAnimationFrame 回調中記錄，與實際顯示時間差約 0–16.7 ms（一幀）。' +
-    '按鍵時間在 keydown 事件中記錄，鍵盤硬體延遲約 1–15 ms。詳情見 Excel 計時說明工作表。';
+  $('timing-note').textContent = t('timingNote');
 
   $('btn-export').onclick     = () => promptExcelPassword(r);
   $('btn-export-csv').onclick = () => exportLegacyCSV(r);
@@ -682,17 +823,17 @@ function promptExcelPassword(r) {
     'background:#fff;border-radius:14px;padding:36px 40px;width:min(400px,90vw);' +
     'box-shadow:0 8px 40px rgba(0,0,0,.3);font-family:inherit;';
   box.innerHTML =
-    '<h3 style="margin:0 0 8px;color:#5C3A1E;font-size:1.1rem;">🔒 下載 Excel 報告</h3>' +
-    '<p style="margin:0 0 18px;font-size:.88rem;color:#7a6052;">請輸入密碼以下載完整報告</p>' +
-    '<input id="pw-input" type="password" placeholder="輸入密碼" ' +
+    '<h3 style="margin:0 0 8px;color:#5C3A1E;font-size:1.1rem;">' + t('pwTitle') + '</h3>' +
+    '<p style="margin:0 0 18px;font-size:.88rem;color:#7a6052;">' + t('pwDesc') + '</p>' +
+    '<input id="pw-input" type="password" placeholder="' + t('pwPh') + '" ' +
     '  style="width:100%;padding:10px 14px;border:1.5px solid #D8C9BB;border-radius:8px;' +
     '         font-size:.97rem;outline:none;box-sizing:border-box;" />' +
     '<p id="pw-err" style="color:#E53935;font-size:.82rem;margin:8px 0 0;min-height:1.2em;"></p>' +
     '<div style="display:flex;gap:10px;margin-top:18px;">' +
     '  <button id="pw-ok" style="flex:2;padding:11px;background:#E65C00;color:#fff;border:none;' +
-    '    border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer;">確認下載</button>' +
+    '    border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer;">' + t('pwOk') + '</button>' +
     '  <button id="pw-cancel" style="flex:1;padding:11px;background:#EEE;border:none;' +
-    '    border-radius:9px;font-weight:600;cursor:pointer;">取消</button>' +
+    '    border-radius:9px;font-weight:600;cursor:pointer;">' + t('pwCancel') + '</button>' +
     '</div>';
 
   overlay.appendChild(box);
@@ -712,7 +853,7 @@ function promptExcelPassword(r) {
       close();
       exportExcel(r);
     } else {
-      err.textContent = '密碼錯誤，請重試';
+      err.textContent = t('pwErr');
       inp.value = '';
       inp.focus();
     }
