@@ -33,8 +33,8 @@ html_body = """
   <div class="card">
     <div class="logo-area">
       <div class="logo-icon">🐾</div>
-      <h1 id="logo-title">BrainQ10 CPTW 注意力評估測驗</h1>
-      <p class="subtitle" id="logo-subtitle">BrainQ10 Continuous Performance Test Web</p>
+      <h1 id="logo-title">BrainQ10</h1>
+      <p class="subtitle" id="logo-subtitle">Continuous Performance Test Web</p>
     </div>
     <div style="text-align:right;margin-bottom:10px;">
       <button id="btn-lang" style="background:none;border:1.5px solid #4bb9db;color:#4bb9db;border-radius:20px;padding:4px 16px;font-size:.85rem;cursor:pointer;font-weight:700;">EN</button>
@@ -154,7 +154,7 @@ html = f"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ACPT 動物持續表現測驗</title>
+  <title>BrainQ10 — Continuous Performance Test Web</title>
   <style>
 {css}
   </style>

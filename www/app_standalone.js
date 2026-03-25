@@ -63,8 +63,8 @@ let curLang = 'zh';
 
 const LANG = {
   zh: {
-    logoTitle: 'BrainQ10 CPTW 注意力評估測驗',
-    logoSubtitle: 'BrainQ10 Continuous Performance Test Web',
+    logoTitle: 'BrainQ10',
+    logoSubtitle: 'Continuous Performance Test Web',
     langBtn: 'EN',
     labelName: '姓名', labelPid: '受試者編號', labelAge: '年齡（歲）',
     labelGender: '性別', labelNote: '備註（可留空）',
@@ -123,8 +123,8 @@ const LANG = {
       '<p>全程共 <strong>' + n + ' 個試次</strong>，分暖身、主要及緩和三個階段。</p>'; },
   },
   en: {
-    logoTitle: 'BrainQ10 CPTW Attention Assessment',
-    logoSubtitle: 'BrainQ10 Continuous Performance Test Web',
+    logoTitle: 'BrainQ10',
+    logoSubtitle: 'Continuous Performance Test Web',
     langBtn: '中文',
     labelName: 'Name', labelPid: 'Participant ID', labelAge: 'Age (years)',
     labelGender: 'Gender', labelNote: 'Notes (optional)',
