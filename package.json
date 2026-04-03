@@ -1,0 +1,21 @@
+{
+  "name": "animal-cpt-web",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build:wasm": "wasm-pack build --target web --out-dir www/pkg",
+    "build:app": "vite build",
+    "build": "npm run build:wasm && npm run build:app"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "javascript-obfuscator": "^5.4.1",
+    "vite": "^8.0.3",
+    "vite-plugin-javascript-obfuscator": "^3.1.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
