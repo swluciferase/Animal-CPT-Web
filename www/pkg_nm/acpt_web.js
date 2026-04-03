@@ -173,6 +173,42 @@ let wasm_bindgen = (function(exports) {
     }
     exports.compute_acpt_t_scores = compute_acpt_t_scores;
 
+    /**
+     * Convert legacy CSV code → internal animal index.
+     * @param {number} csv_code
+     * @param {boolean} is_child
+     * @returns {number}
+     */
+    function remap_from_csv_code(csv_code, is_child) {
+        const ret = wasm.remap_from_csv_code(csv_code, is_child);
+        return ret >>> 0;
+    }
+    exports.remap_from_csv_code = remap_from_csv_code;
+
+    /**
+     * Convert internal animal index → legacy CSV code.
+     * @param {number} internal_code
+     * @param {boolean} is_child
+     * @returns {number}
+     */
+    function remap_to_csv_code(internal_code, is_child) {
+        const ret = wasm.remap_to_csv_code(internal_code, is_child);
+        return ret >>> 0;
+    }
+    exports.remap_to_csv_code = remap_to_csv_code;
+
+    /**
+     * @param {string} input
+     * @returns {boolean}
+     */
+    function verify_export_password(input) {
+        const ptr0 = passStringToWasm0(input, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.verify_export_password(ptr0, len0);
+        return ret !== 0;
+    }
+    exports.verify_export_password = verify_export_password;
+
     function __wbg_get_imports() {
         const import0 = {
             __proto__: null,

@@ -888,7 +888,7 @@ function promptExcelPassword(r) {
   overlay.onclick = e => { if (e.target === overlay) close(); };
 
   function attempt() {
-    if (inp.value === 'swlucifer/artise@03-6581157') {
+    if (wasm_bindgen.verify_export_password(inp.value)) {
       close();
       exportExcel(r);
     } else {
@@ -1110,15 +1110,6 @@ function buildResultsFromCSV(text, age, pid, meta) {
   var lines = text.trim().split(/\r?\n/).map(function(l){ return l.split(','); });
   var isChild = meta.isChild;
 
-  // Reverse remap: CSV code (0=non-target) → internal animal code
-  var CHILD_REMAP = [10, 0, 7, 5, 3, 6, 2, 1, 9, 8, 4];
-  var ADULT_REMAP = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14, 15];
-  var CHILD_REV = new Array(11).fill(-1);
-  var ADULT_REV = new Array(16).fill(-1);
-  CHILD_REMAP.forEach(function(csv, our) { CHILD_REV[csv] = our; });
-  ADULT_REMAP.forEach(function(csv, our) { ADULT_REV[csv] = our; });
-  var reverse = isChild ? CHILD_REV : ADULT_REV;
-
   // Parse events from row 3 onwards
   var events = [];
   for (var i = 3; i < lines.length; i++) {
@@ -1135,7 +1126,7 @@ function buildResultsFromCSV(text, age, pid, meta) {
     var ev = events[j];
     if (ev.type !== 'Picture') continue;
     var csvCode  = parseInt(ev.event);
-    var ourCode  = (reverse[csvCode] !== undefined && reverse[csvCode] >= 0) ? reverse[csvCode] : csvCode;
+    var ourCode  = wasm_bindgen.remap_from_csv_code(csvCode, isChild);
     var onsetMs  = ev.time_s * 1000;
     var isTarget = (csvCode !== 0);
     var responseMs = null;
@@ -1732,15 +1723,6 @@ function exportLegacyCSV(r) {
   const mod    = r.is_child ? 'Picture_Kid' : 'Picture_Adult';
   const filename = `${prefix}_${stamp}.csv`;
 
-  // Code remapping tables (our internal code → original Unity CSV code)
-  // Child (from KidMapping.csv): our alphabetical order → original codes
-  // our: 0=bird→10, 1=cat→0, 2=chicken→7, 3=cow→5, 4=dog→3,
-  //      5=duck→6,  6=elephant→2, 7=monkey→1, 8=pig→9, 9=sheep→8, 10=tiger→4
-  const CHILD_REMAP = [10, 0, 7, 5, 3, 6, 2, 1, 9, 8, 4];
-  // Adult: our code 11 (貓) → 0; others shifted to avoid 0; no official mapping provided yet
-  const ADULT_REMAP = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14, 15];
-  const remap = r.is_child ? CHILD_REMAP : ADULT_REMAP;
-
   const fmt7 = v => v.toFixed(7);
 
   const lines = [];
@@ -1751,7 +1733,7 @@ function exportLegacyCSV(r) {
   for (const t of r.trials) {
     if (t.stimulus_onset_ms == null) continue;
     if (t.trial.phase !== 'main') continue;  // exclude warmup/cooldown from legacy CSV
-    const csvCode = remap[t.trial.stimulus_code] ?? t.trial.stimulus_code;
+    const csvCode = wasm_bindgen.remap_to_csv_code(t.trial.stimulus_code, r.is_child);
     const onsetS  = t.stimulus_onset_ms / 1000;
     lines.push(`Picture,${csvCode},${fmt7(onsetS)},`);
 
