@@ -1206,30 +1206,8 @@ function getAgeGroup(age) {
   return '18-99';
 }
 
-const ACPT_NORMS = {
-  '4-5':  {omissions:[0.155,0.062],commissions:[0.151,0.078],HRT:[520,98], HRTSD:[89,32], Variability:[84,36], BlockChange:[-24,10],ISIChange:[-7,8]},
-  '6-7':  {omissions:[0.131,0.058],commissions:[0.127,0.072],HRT:[495,91], HRTSD:[82,29], Variability:[77,32], BlockChange:[-21,9], ISIChange:[-6,7]},
-  '8-9':  {omissions:[0.092,0.055],commissions:[0.09,0.072], HRT:[441,87], HRTSD:[69,27], Variability:[68,31], BlockChange:[-18,8], ISIChange:[-5,7]},
-  '10-11':{omissions:[0.076,0.043],commissions:[0.072,0.063],HRT:[425,79], HRTSD:[63,22], Variability:[60,28], BlockChange:[-16,7], ISIChange:[-4,6]},
-  '12-13':{omissions:[0.063,0.039],commissions:[0.065,0.052],HRT:[405,73], HRTSD:[59,20], Variability:[54,25], BlockChange:[-15,6], ISIChange:[-3,6]},
-  '14-15':{omissions:[0.048,0.030],commissions:[0.058,0.051],HRT:[388,70], HRTSD:[56,18], Variability:[50,23], BlockChange:[-13,6], ISIChange:[-2,5]},
-  '16-17':{omissions:[0.041,0.026],commissions:[0.052,0.048],HRT:[382,65], HRTSD:[54,17], Variability:[47,22], BlockChange:[-12,5], ISIChange:[-2,5]},
-  '18-99':{omissions:[0.038,0.023],commissions:[0.049,0.046],HRT:[374,61], HRTSD:[53,16], Variability:[45,21], BlockChange:[-11,5], ISIChange:[-2,5]},
-};
-
-function acptRegress(key, X) {
-  if (X === undefined || !isFinite(X)) return undefined;
-  switch(key) {
-    case 'omissions':   return -0.0089*X*X + 1.5198*X + 7.8197;
-    case 'commissions': return  0.0006*X*X + 0.3351*X + 21.389;
-    case 'HRT':         return -0.0147*X*X + 2.5204*X - 43.465;
-    case 'HRTSD':       return -0.0017*X*X + 0.6369*X + 8.4443;
-    case 'Variability': return  0.1249*X*X - 6.6492*X + 126.74;
-    case 'BlockChange': return -0.0005*X*X + 0.3926*X + 20.722;
-    case 'ISIChange':   return  0.000001*X*X + 0.1207*X + 37.44;
-    default: return undefined;
-  }
-}
+// Normative data and regression coefficients are protected inside the WASM binary.
+// Use wasm_bindgen.compute_acpt_t_scores() to obtain T-scores.
 
 function computeACPTMetrics(r) {
   const BDO = [1.0, 1.5, 2.0, 3.0, 4.0];
@@ -1539,9 +1517,6 @@ function showACPTReport(r) {
     @media print{.chart-blk,.chart-isi{page-break-inside:avoid}.isi-row{grid-template-columns:repeat(3,1fr)}}
   `;
 
-  const ageGroup = getAgeGroup(r.age);
-  const norm = ACPT_NORMS[ageGroup];
-
   const metricDefs = [
     { key:'omissions',   label:'遺漏率 (Omissions)',   unit:'', fmt: v => (v*100).toFixed(1)+'%', raw: m.omissions },
     { key:'commissions', label:'衝動率 (Commissions)',  unit:'', fmt: v => (v*100).toFixed(1)+'%', raw: m.commissions },
@@ -1552,15 +1527,20 @@ function showACPTReport(r) {
     { key:'ISIChange',   label:'ISI 變化 (ISI Change)', unit:'ms', fmt: v => v.toFixed(2)+'ms', raw: m.ISIChange },
   ];
 
-  // Compute T-scores
+  // Compute T-scores via WASM (norms + regression coefficients are inside the binary)
+  const _rawMetrics = { omissions:m.omissions, commissions:m.commissions,
+    HRT:m.HRT, HRTSD:m.HRTSD, Variability:m.Variability,
+    BlockChange:m.BlockChange, ISIChange:m.ISIChange };
+  const _tScoreMap = {};
+  try {
+    JSON.parse(wasm_bindgen.compute_acpt_t_scores(JSON.stringify(_rawMetrics), r.age))
+      .forEach(t => { _tScoreMap[t.key] = t; });
+  } catch(_) {}
+
   const tRows = metricDefs.map(({ key, label, fmt, raw }) => {
-    const n = norm[key];
-    if (raw == null || !isFinite(raw) || !n) return { key, label, rawStr:'—', tRaw:null, tFinal:null };
-    const z = (raw - n[0]) / n[1];
-    const tRaw = 50 + 10 * z;
-    const tFinal = acptRegress(key, tRaw);
-    const tF = tFinal != null ? Math.min(99, Math.max(1, Math.round(tFinal))) : null;
-    return { key, label, rawStr: fmt(raw), tRaw: tRaw.toFixed(1), tFinal: tF };
+    const ts = _tScoreMap[key];
+    return { key, label, rawStr: raw != null && isFinite(raw) ? fmt(raw) : '—',
+             tRaw: ts?.tRaw ?? null, tFinal: ts?.tFinal ?? null };
   });
 
   const vr = r.is_child ? '兒童版（4–7歲）' : '成人版（8歲+）';

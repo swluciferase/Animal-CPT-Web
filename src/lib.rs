@@ -914,3 +914,91 @@ impl CptTask {
         serde_json::to_string(&results).unwrap_or_default()
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Normative T-score computation (protected in WASM binary)
+// ACPT_NORMS: [age_group, [mean×7], [sd×7]]
+// metric order: omissions, commissions, HRT(ms), HRTSD(ms), Variability(ms),
+//               BlockChange(ms), ISIChange(ms)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const METRIC_KEYS: [&str; 7] = [
+    "omissions","commissions","HRT","HRTSD","Variability","BlockChange","ISIChange",
+];
+
+// Voss-style normative data — [mean, sd] per metric per age group
+const ACPT_NORMS: &[(&str, [f64; 7], [f64; 7])] = &[
+    ("4-5",   [0.155,0.151,520.0,89.0,84.0,-24.0,-7.0], [0.062,0.078,98.0,32.0,36.0,10.0,8.0]),
+    ("6-7",   [0.131,0.127,495.0,82.0,77.0,-21.0,-6.0], [0.058,0.072,91.0,29.0,32.0, 9.0,7.0]),
+    ("8-9",   [0.092,0.090,441.0,69.0,68.0,-18.0,-5.0], [0.055,0.072,87.0,27.0,31.0, 8.0,7.0]),
+    ("10-11", [0.076,0.072,425.0,63.0,60.0,-16.0,-4.0], [0.043,0.063,79.0,22.0,28.0, 7.0,6.0]),
+    ("12-13", [0.063,0.065,405.0,59.0,54.0,-15.0,-3.0], [0.039,0.052,73.0,20.0,25.0, 6.0,6.0]),
+    ("14-15", [0.048,0.058,388.0,56.0,50.0,-13.0,-2.0], [0.030,0.051,70.0,18.0,23.0, 6.0,5.0]),
+    ("16-17", [0.041,0.052,382.0,54.0,47.0,-12.0,-2.0], [0.026,0.048,65.0,17.0,22.0, 5.0,5.0]),
+    ("18-99", [0.038,0.049,374.0,53.0,45.0,-11.0,-2.0], [0.023,0.046,61.0,16.0,21.0, 5.0,5.0]),
+];
+
+fn acpt_age_group(age: u32) -> &'static str {
+    match age {
+        0..=5   => "4-5",
+        6..=7   => "6-7",
+        8..=9   => "8-9",
+        10..=11 => "10-11",
+        12..=13 => "12-13",
+        14..=15 => "14-15",
+        16..=17 => "16-17",
+        _       => "18-99",
+    }
+}
+
+fn acpt_regress(key: &str, x: f64) -> Option<f64> {
+    if !x.is_finite() { return None; }
+    Some(match key {
+        "omissions"   => -0.0089*x*x + 1.5198*x + 7.8197,
+        "commissions" =>  0.0006*x*x + 0.3351*x + 21.389,
+        "HRT"         => -0.0147*x*x + 2.5204*x - 43.465,
+        "HRTSD"       => -0.0017*x*x + 0.6369*x +  8.4443,
+        "Variability" =>  0.1249*x*x - 6.6492*x + 126.74,
+        "BlockChange" => -0.0005*x*x + 0.3926*x + 20.722,
+        "ISIChange"   =>  0.000001*x*x + 0.1207*x + 37.44,
+        _ => return None,
+    })
+}
+
+/// Compute T-scores for all 7 ACPT metrics.
+///
+/// `metrics_json`: `{"omissions":…,"commissions":…,"HRT":…,"HRTSD":…,
+///                   "Variability":…,"BlockChange":…,"ISIChange":…}`
+/// Returns JSON array: `[{"key":…,"tRaw":"47.3","tFinal":50}, …]`
+#[wasm_bindgen]
+pub fn compute_acpt_t_scores(metrics_json: &str, age: u32) -> String {
+    let metrics: serde_json::Value =
+        serde_json::from_str(metrics_json).unwrap_or(serde_json::Value::Null);
+
+    let grp = acpt_age_group(age);
+    let norm = match ACPT_NORMS.iter().find(|(g, _, _)| *g == grp) {
+        Some(n) => n,
+        None    => return "[]".to_string(),
+    };
+    let (means, sds) = (&norm.1, &norm.2);
+
+    let rows: Vec<serde_json::Value> = METRIC_KEYS.iter().enumerate().map(|(i, key)| {
+        let raw = metrics.get(*key).and_then(|v| v.as_f64());
+        match raw {
+            Some(r) if r.is_finite() && sds[i] > 0.0 => {
+                let z      = (r - means[i]) / sds[i];
+                let t_raw  = 50.0 + 10.0 * z;
+                let t_fin  = acpt_regress(key, t_raw)
+                    .map(|t| t.clamp(1.0, 99.0).round() as i64);
+                serde_json::json!({
+                    "key":    key,
+                    "tRaw":   format!("{:.1}", t_raw),
+                    "tFinal": t_fin,
+                })
+            }
+            _ => serde_json::json!({ "key": key, "tRaw": null, "tFinal": null }),
+        }
+    }).collect();
+
+    serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_string())
+}
