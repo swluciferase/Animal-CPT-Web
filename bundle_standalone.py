@@ -48,7 +48,7 @@ def obfuscate_js(code: str) -> str:
     CHUNK = 76
     chunks = [b64[j:j+CHUNK] for j in range(0, len(b64), CHUNK)]
     chunks_js = ',\n    '.join(f'"{c}"' for c in chunks)
-    return f'(function(){{\n  var _c=[\n    {chunks_js}\n  ];\n  eval(atob(_c.join("")));\n}})();'
+    return f'(function(){{\n  var _c=[\n    {chunks_js}\n  ];\n  var _b=atob(_c.join(""));\n  eval(new TextDecoder().decode(Uint8Array.from(_b,function(c){{return c.charCodeAt(0)}})));\n}})();'
 
 # ── Load assets ──────────────────────────────
 print("Reading assets...")
