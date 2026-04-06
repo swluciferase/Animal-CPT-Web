@@ -63,7 +63,7 @@ let curLang = 'zh';
 
 const LANG = {
   zh: {
-    logoTitle: 'BrainQ10',
+    logoTitle: 'VeloMynd',
     logoSubtitle: 'Continuous Performance Test Web',
     langBtn: 'EN',
     labelName: '姓名', labelPid: '受試者編號', labelAge: '年齡（歲）',
@@ -123,7 +123,7 @@ const LANG = {
       '<p>全程共 <strong>' + n + ' 個試次</strong>，分暖身、主要及緩和三個階段。</p>'; },
   },
   en: {
-    logoTitle: 'BrainQ10',
+    logoTitle: 'VeloMynd',
     logoSubtitle: 'Continuous Performance Test Web',
     langBtn: '中文',
     labelName: 'Name', labelPid: 'Participant ID', labelAge: 'Age (years)',

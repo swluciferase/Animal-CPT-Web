@@ -6,7 +6,7 @@ The output file can be opened directly in any modern browser (file://).
 Run from the acpt-web directory:
     python3 bundle_standalone.py
 """
-import base64, pathlib, sys, textwrap
+import base64, pathlib, sys, textwrap, re
 
 ROOT  = pathlib.Path(__file__).parent
 WWW   = ROOT / 'www'
@@ -18,13 +18,45 @@ def read(path):
 def read_bytes_b64(path):
     return base64.b64encode(path.read_bytes()).decode('ascii')
 
+def obfuscate_js(code: str) -> str:
+    """Strip comments, minify, base64-encode → eval-based self-decoder."""
+    # Strip block and line comments (simple tokenizer)
+    result = []; i = 0; n = len(code)
+    in_s = in_d = in_t = False
+    while i < n:
+        c = code[i]
+        if c == "'" and not in_d and not in_t:
+            in_s = not in_s; result.append(c); i += 1; continue
+        if c == '"' and not in_s and not in_t:
+            in_d = not in_d; result.append(c); i += 1; continue
+        if c == '`' and not in_s and not in_d:
+            in_t = not in_t; result.append(c); i += 1; continue
+        if in_s or in_d or in_t:
+            if c == '\\': result.append(c); result.append(code[i+1]); i += 2; continue
+            result.append(c); i += 1; continue
+        if c == '/' and i+1 < n and code[i+1] == '*':
+            end = code.find('*/', i+2); i = end+2 if end != -1 else n
+            result.append(' '); continue
+        if c == '/' and i+1 < n and code[i+1] == '/':
+            end = code.find('\n', i+2); i = end if end != -1 else n; continue
+        result.append(c); i += 1
+    stripped = ''.join(result)
+    # Collapse whitespace
+    minified = re.sub(r'\s+', ' ', stripped).strip()
+    # Base64 encode
+    b64 = base64.b64encode(minified.encode('utf-8')).decode('ascii')
+    CHUNK = 76
+    chunks = [b64[j:j+CHUNK] for j in range(0, len(b64), CHUNK)]
+    chunks_js = ',\n    '.join(f'"{c}"' for c in chunks)
+    return f'(function(){{\n  var _c=[\n    {chunks_js}\n  ];\n  eval(atob(_c.join("")));\n}})();'
+
 # ── Load assets ──────────────────────────────
 print("Reading assets...")
 css         = read(WWW / 'style.css')
 wasm_b64    = read_bytes_b64(WWW / 'pkg_nm' / 'acpt_web_bg.wasm')
 wasm_js     = read(WWW / 'pkg_nm' / 'acpt_web.js')
 xlsx_js     = read(WWW / 'xlsx.min.js')
-app_js      = read(WWW / 'app_standalone.js')
+app_js      = obfuscate_js(read(WWW / 'app_standalone.js'))
 
 # ── HTML body (same as index.html but without external links) ─────────────
 html_body = """
@@ -33,7 +65,7 @@ html_body = """
   <div class="card">
     <div class="logo-area">
       <div class="logo-icon">🐾</div>
-      <h1 id="logo-title">BrainQ10</h1>
+      <h1 id="logo-title">VeloMynd</h1>
       <p class="subtitle" id="logo-subtitle">Continuous Performance Test Web</p>
     </div>
     <div style="text-align:right;margin-bottom:10px;">
@@ -154,7 +186,7 @@ html = f"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BrainQ10 — Continuous Performance Test Web</title>
+  <title>VeloMynd — Continuous Performance Test Web</title>
   <style>
 {css}
   </style>
