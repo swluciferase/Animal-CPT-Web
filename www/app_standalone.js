@@ -259,7 +259,10 @@ let _sessionToken = null;
   if (!token) return;
   _sessionToken = token;
   fetch(`${ARTISEBIO_API}/sessions/token/${encodeURIComponent(token)}`)
-    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(r => {
+      if (!r.ok) throw r.status;
+      return r.json();
+    })
     .then(data => {
       _sessionId = data.session_id;
       if (data.client_name) {
@@ -289,7 +292,15 @@ let _sessionToken = null;
         if (noteEl && !noteEl.value) noteEl.value = data.notes;
       }
     })
-    .catch(() => {});
+    .catch(() => {
+      // Session expired, completed, or deleted — block form submission
+      var submitBtn = document.getElementById('btn-submit');
+      if (submitBtn) submitBtn.disabled = true;
+      var notice = document.createElement('div');
+      notice.style.cssText = 'margin-top:12px;padding:12px 16px;background:#7f1d1d;color:#fca5a5;border-radius:8px;font-size:0.9rem;text-align:center;';
+      notice.textContent = '此測驗連結已失效或已完成，無法進行測驗。';
+      if (submitBtn) submitBtn.parentNode.insertBefore(notice, submitBtn);
+    });
 })();
 
 function _saveSessionResult(results) {
