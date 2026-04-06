@@ -248,6 +248,56 @@ let responseTimer     = null;
 
 let userData = {};
 
+// ─── Session token support (artisebio-web integration) ──────────────────────
+const ARTISEBIO_API = 'https://www.sigmacog.xyz/api';
+let _sessionId = null;
+let _sessionToken = null;
+
+(function initSessionFromURL() {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('session_token');
+  if (!token) return;
+  _sessionToken = token;
+  fetch(`${ARTISEBIO_API}/sessions/token/${encodeURIComponent(token)}`)
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(data => {
+      _sessionId = data.session_id;
+      if (data.user_name) {
+        const nameEl = document.getElementById('inp-name');
+        if (nameEl && !nameEl.value) nameEl.value = data.user_name;
+      }
+      if (data.notes) {
+        const noteEl = document.getElementById('inp-note');
+        if (noteEl && !noteEl.value) noteEl.value = data.notes;
+      }
+    })
+    .catch(() => {});
+})();
+
+function _saveSessionResult(results) {
+  if (!_sessionId || !_sessionToken) return;
+  fetch(`${ARTISEBIO_API}/sessions/${_sessionId}/result`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_token: _sessionToken,
+      results: {
+        omission_rate:  results.omission_rate_pct,
+        commission_rate: results.commission_rate_pct,
+        mean_rt:        results.mean_rt_ms,
+        d_prime:        results.d_prime,
+        hits:           results.hits,
+        misses:         results.misses,
+        false_alarms:   results.false_alarms,
+        correct_rejections: results.correct_rejections,
+        total_trials:   results.total_trials,
+        is_child:       results.is_child,
+      },
+    }),
+  }).catch(() => {});
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 const $ = id => document.getElementById(id);
 
 $('btn-lang').addEventListener('click', toggleLang);
@@ -733,6 +783,7 @@ function endTask() {
                       _now.getSeconds().toString().padStart(2,'0');
 
   saveToLocalStorage(results);
+  _saveSessionResult(results);
   renderResults(results);
   showScreen('screen-results');
 }
