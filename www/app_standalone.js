@@ -262,9 +262,27 @@ let _sessionToken = null;
     .then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(data => {
       _sessionId = data.session_id;
-      if (data.user_name) {
+      if (data.client_name) {
         const nameEl = document.getElementById('inp-name');
-        if (nameEl && !nameEl.value) nameEl.value = data.user_name;
+        if (nameEl && !nameEl.value) nameEl.value = data.client_name;
+      }
+      if (data.subject_id) {
+        const pidEl = document.getElementById('inp-id');
+        if (pidEl && !pidEl.value) pidEl.value = data.subject_id;
+      }
+      if (data.birth_date) {
+        const ageEl = document.getElementById('inp-age');
+        if (ageEl && !ageEl.value) {
+          const age = Math.floor((Date.now() - new Date(data.birth_date).getTime()) / (1000*60*60*24*365.25));
+          if (age > 0) ageEl.value = age;
+        }
+      }
+      if (data.gender) {
+        const gEl = document.getElementById('inp-gender');
+        if (gEl) {
+          const map = { M:'M', F:'F', O:'O' };
+          if (map[data.gender]) gEl.value = map[data.gender];
+        }
       }
       if (data.notes) {
         const noteEl = document.getElementById('inp-note');
