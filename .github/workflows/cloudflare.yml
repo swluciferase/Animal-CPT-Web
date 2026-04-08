@@ -29,6 +29,9 @@ jobs:
       - name: Build Project
         run: npm run build
 
+      - name: Copy functions into dist
+        run: cp -r functions dist/functions
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
