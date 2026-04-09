@@ -64,7 +64,7 @@ let curLang = 'zh';
 const LANG = {
   zh: {
     logoTitle: 'VeloMynd',
-    logoSubtitle: 'Continuous Performance Test Web  v1.2',
+    logoSubtitle: '持續注意力表現測驗 v1.2',
     langBtn: 'EN',
     labelName: '姓名', labelPid: '受試者編號', labelAge: '年齡（歲）',
     labelGender: '性別', labelNote: '備註（可留空）',
