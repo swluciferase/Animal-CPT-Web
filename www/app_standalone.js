@@ -64,7 +64,7 @@ let curLang = 'zh';
 const LANG = {
   zh: {
     logoTitle: 'VeloMynd',
-    logoSubtitle: 'Continuous Performance Test Web',
+    logoSubtitle: 'Continuous Performance Test Web  v1.2',
     langBtn: 'EN',
     labelName: '姓名', labelPid: '受試者編號', labelAge: '年齡（歲）',
     labelGender: '性別', labelNote: '備註（可留空）',
@@ -124,7 +124,7 @@ const LANG = {
   },
   en: {
     logoTitle: 'VeloMynd',
-    logoSubtitle: 'Continuous Performance Test Web',
+    logoSubtitle: 'Continuous Performance Test Web  v1.2',
     langBtn: '中文',
     labelName: 'Name', labelPid: 'Participant ID', labelAge: 'Age (years)',
     labelGender: 'Gender', labelNote: 'Notes (optional)',
@@ -342,6 +342,10 @@ $('csv-file-input').addEventListener('change', function(e) {
     } catch(err) {
       alert((curLang === 'zh' ? '無法解析 CSV 檔案：' : 'Cannot parse CSV: ') + err.message);
     }
+    e.target.value = '';
+  };
+  reader.onerror = function() {
+    alert(curLang === 'zh' ? '無法讀取檔案，請重試。' : 'Cannot read file, please try again.');
     e.target.value = '';
   };
   reader.readAsText(file, 'utf-8');
@@ -1172,14 +1176,19 @@ function showCSVMetaModal(meta, rawText) {
       errEl.textContent = LANG[curLang].csvModalAgeErr;
       return;
     }
+    var r;
     try {
-      var r = buildResultsFromCSV(rawText, age, pidInp.value.trim(), meta);
+      r = buildResultsFromCSV(rawText, age, pidInp.value.trim(), meta);
       userData = { name: meta.name, pid: pidInp.value.trim(), age, gender: meta.gender, note: '' };
-      close();
-      showACPTReport(r);
     } catch(err) {
       errEl.textContent = LANG[curLang].csvModalParseErr + err.message;
+      return;
     }
+    close();
+    // showACPTReport is async; attach .catch() so rejected promises surface as alerts
+    showACPTReport(r).catch(function(e) {
+      alert((curLang === 'zh' ? '報告產生失敗：' : 'Report error: ') + (e && e.message || String(e)));
+    });
   }
 
   overlay.querySelector('#csv-ok').onclick = generate;
