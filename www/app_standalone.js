@@ -1626,6 +1626,9 @@ async function showACPTReport(r) {
   const vr = r.is_child ? '兒童版（4–7歲）' : '成人版（8歲+）';
   const gender = { M:'男', F:'女', O:'其他' }[userData.gender] || userData.gender || '';
   const dateStr = r.test_date || '';
+  const ageGroup = r.age <= 5 ? '4-5' : r.age <= 7 ? '6-7' : r.age <= 9 ? '8-9' :
+                   r.age <= 11 ? '10-11' : r.age <= 13 ? '12-13' :
+                   r.age <= 15 ? '14-15' : r.age <= 17 ? '16-17' : '18-99';
 
   // Build HTML for the T-score bar (visual)
   function tBar(t) {
