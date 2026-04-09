@@ -1,5 +1,6 @@
 use wasm_bindgen::prelude::*;
 use serde::{Serialize, Deserialize};
+use sha2::{Sha256, Digest};
 
 // ─────────────────────────────────────────────
 // Animal code tables
@@ -916,8 +917,10 @@ impl CptTask {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Normative T-score computation (protected in WASM binary)
-// ACPT_NORMS: [age_group, [mean×7], [sd×7]]
+// Normative T-score computation — GAMLSS continuous model
+// mu(age)    = a * exp(-b * age) + c
+// sigma(age) = a * exp(-b * age) + c
+// age clamped to [4.0, 25.0] (adults ≥18 anchored at 25-year baseline)
 // metric order: omissions, commissions, HRT(ms), HRTSD(ms), Variability(ms),
 //               BlockChange(ms), ISIChange(ms)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -926,29 +929,27 @@ const METRIC_KEYS: [&str; 7] = [
     "omissions","commissions","HRT","HRTSD","Variability","BlockChange","ISIChange",
 ];
 
-// Voss-style normative data — [mean, sd] per metric per age group
-const ACPT_NORMS: &[(&str, [f64; 7], [f64; 7])] = &[
-    ("4-5",   [0.155,0.151,520.0,89.0,84.0,-24.0,-7.0], [0.062,0.078,98.0,32.0,36.0,10.0,8.0]),
-    ("6-7",   [0.131,0.127,495.0,82.0,77.0,-21.0,-6.0], [0.058,0.072,91.0,29.0,32.0, 9.0,7.0]),
-    ("8-9",   [0.092,0.090,441.0,69.0,68.0,-18.0,-5.0], [0.055,0.072,87.0,27.0,31.0, 8.0,7.0]),
-    ("10-11", [0.076,0.072,425.0,63.0,60.0,-16.0,-4.0], [0.043,0.063,79.0,22.0,28.0, 7.0,6.0]),
-    ("12-13", [0.063,0.065,405.0,59.0,54.0,-15.0,-3.0], [0.039,0.052,73.0,20.0,25.0, 6.0,6.0]),
-    ("14-15", [0.048,0.058,388.0,56.0,50.0,-13.0,-2.0], [0.030,0.051,70.0,18.0,23.0, 6.0,5.0]),
-    ("16-17", [0.041,0.052,382.0,54.0,47.0,-12.0,-2.0], [0.026,0.048,65.0,17.0,22.0, 5.0,5.0]),
-    ("18-99", [0.038,0.049,374.0,53.0,45.0,-11.0,-2.0], [0.023,0.046,61.0,16.0,21.0, 5.0,5.0]),
+// Fitted exponential decay params: ([a_mu, b_mu, c_mu], [a_sigma, b_sigma, c_sigma])
+// Fitted from 8-point normative table (age midpoints 4.5–25.0) via scipy curve_fit.
+const GAMLSS_PARAMS: &[(&str, [f64; 3], [f64; 3])] = &[
+    ("omissions",   [ 0.2840255, 0.1727798,  0.0291572], [0.0802068, 0.0887475,  0.0114969]),
+    ("commissions", [ 0.2824441, 0.2086317,  0.0445168], [0.0670958, 0.1083707,  0.0390588]),
+    ("HRT",         [348.6010694, 0.1682010, 363.3327053], [71.4898476, 0.1021172, 54.0657428]),
+    ("HRTSD",       [ 93.1769796, 0.1869642,  50.5952762], [34.5187831, 0.1318887, 13.8075427]),
+    ("Variability", [ 86.1595572, 0.1428131,  40.6128179], [30.3429557, 0.1221945, 18.8015235]),
+    ("BlockChange", [-27.0784366, 0.1415486,  -9.8915930], [10.8975794, 0.1392584,  4.3898895]),
+    ("ISIChange",   [-11.7573017, 0.1483993,  -1.2716793], [ 6.5026453, 0.1407894,  4.5880394]),
 ];
 
-fn acpt_age_group(age: u32) -> &'static str {
-    match age {
-        0..=5   => "4-5",
-        6..=7   => "6-7",
-        8..=9   => "8-9",
-        10..=11 => "10-11",
-        12..=13 => "12-13",
-        14..=15 => "14-15",
-        16..=17 => "16-17",
-        _       => "18-99",
-    }
+/// Returns (mu, sigma) for a given metric at a continuous age.
+fn gamlss_norm(key: &str, age: f64) -> Option<(f64, f64)> {
+    let age_eff = age.clamp(4.0, 25.0);
+    let p = GAMLSS_PARAMS.iter().find(|(k, _, _)| *k == key)?;
+    let [am, bm, cm] = p.1;
+    let [a_s, b_s, c_s] = p.2;
+    let mu    = am * (-bm * age_eff).exp() + cm;
+    let sigma = a_s * (-b_s * age_eff).exp() + c_s;
+    Some((mu, sigma))
 }
 
 fn acpt_regress(key: &str, x: f64) -> Option<f64> {
@@ -965,7 +966,7 @@ fn acpt_regress(key: &str, x: f64) -> Option<f64> {
     })
 }
 
-/// Compute T-scores for all 7 ACPT metrics.
+/// Compute T-scores for all 7 ACPT metrics using the GAMLSS continuous norm model.
 ///
 /// `metrics_json`: `{"omissions":…,"commissions":…,"HRT":…,"HRTSD":…,
 ///                   "Variability":…,"BlockChange":…,"ISIChange":…}`
@@ -975,30 +976,72 @@ pub fn compute_acpt_t_scores(metrics_json: &str, age: u32) -> String {
     let metrics: serde_json::Value =
         serde_json::from_str(metrics_json).unwrap_or(serde_json::Value::Null);
 
-    let grp = acpt_age_group(age);
-    let norm = match ACPT_NORMS.iter().find(|(g, _, _)| *g == grp) {
-        Some(n) => n,
-        None    => return "[]".to_string(),
-    };
-    let (means, sds) = (&norm.1, &norm.2);
+    let age_f = age as f64;
 
-    let rows: Vec<serde_json::Value> = METRIC_KEYS.iter().enumerate().map(|(i, key)| {
+    let rows: Vec<serde_json::Value> = METRIC_KEYS.iter().map(|key| {
         let raw = metrics.get(*key).and_then(|v| v.as_f64());
         match raw {
-            Some(r) if r.is_finite() && sds[i] > 0.0 => {
-                let z      = (r - means[i]) / sds[i];
-                let t_raw  = 50.0 + 10.0 * z;
-                let t_fin  = acpt_regress(key, t_raw)
-                    .map(|t| t.clamp(1.0, 99.0).round() as i64);
-                serde_json::json!({
-                    "key":    key,
-                    "tRaw":   format!("{:.1}", t_raw),
-                    "tFinal": t_fin,
-                })
+            Some(r) if r.is_finite() => {
+                match gamlss_norm(key, age_f) {
+                    Some((mu, sigma)) if sigma > 0.0 => {
+                        let z      = (r - mu) / sigma;
+                        let t_raw  = 50.0 + 10.0 * z;
+                        let t_fin  = acpt_regress(key, t_raw)
+                            .map(|t| t.clamp(1.0, 99.0).round() as i64);
+                        serde_json::json!({
+                            "key":    key,
+                            "tRaw":   format!("{:.1}", t_raw),
+                            "tFinal": t_fin,
+                        })
+                    }
+                    _ => serde_json::json!({ "key": key, "tRaw": null, "tFinal": null }),
+                }
             }
             _ => serde_json::json!({ "key": key, "tRaw": null, "tFinal": null }),
         }
     }).collect();
 
     serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_string())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Password gate — SHA-256 hash comparison (no plaintext in binary)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PW_HASH: [u8; 32] = [
+    0xf2, 0x04, 0x89, 0x23, 0xc0, 0x05, 0xc7, 0x59,
+    0x7d, 0xd7, 0x98, 0x83, 0x27, 0xbb, 0x7e, 0x02,
+    0x6d, 0x86, 0xc0, 0x2b, 0x94, 0x83, 0x08, 0x99,
+    0x8d, 0xda, 0x07, 0x9c, 0x69, 0xdf, 0xf5, 0xd1,
+];
+
+#[wasm_bindgen]
+pub fn verify_export_password(input: &str) -> bool {
+    let mut h = Sha256::new();
+    h.update(input.as_bytes());
+    let result = h.finalize();
+    result.as_slice() == PW_HASH
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Legacy CSV code remapping (internal ↔ original Unity CSV codes)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CHILD_REMAP: [u32; 11] = [10, 0, 7, 5, 3, 6, 2, 1, 9, 8, 4];
+const ADULT_REMAP: [u32; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14, 15];
+
+/// Convert internal animal index → legacy CSV code.
+#[wasm_bindgen]
+pub fn remap_to_csv_code(internal_code: u32, is_child: bool) -> u32 {
+    let remap: &[u32] = if is_child { &CHILD_REMAP } else { &ADULT_REMAP };
+    remap.get(internal_code as usize).copied().unwrap_or(internal_code)
+}
+
+/// Convert legacy CSV code → internal animal index.
+#[wasm_bindgen]
+pub fn remap_from_csv_code(csv_code: u32, is_child: bool) -> u32 {
+    let remap: &[u32] = if is_child { &CHILD_REMAP } else { &ADULT_REMAP };
+    remap.iter().position(|&c| c == csv_code)
+        .map(|i| i as u32)
+        .unwrap_or(csv_code)
 }

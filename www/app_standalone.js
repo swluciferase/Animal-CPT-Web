@@ -1185,10 +1185,7 @@ function showCSVMetaModal(meta, rawText) {
       return;
     }
     close();
-    // showACPTReport is async; attach .catch() so rejected promises surface as alerts
-    showACPTReport(r).catch(function(e) {
-      alert((curLang === 'zh' ? '報告產生失敗：' : 'Report error: ') + (e && e.message || String(e)));
-    });
+    showACPTReport(r);
   }
 
   overlay.querySelector('#csv-ok').onclick = generate;
@@ -1516,7 +1513,7 @@ function chartTable(headers, rows) {
   return `<table class="ct"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 }
 
-async function showACPTReport(r) {
+function showACPTReport(r) {
   const m = computeACPTMetrics(r);
   if (!m) { alert('試次數量不足，無法產生分析報告。'); return; }
 
@@ -1731,17 +1728,9 @@ async function showACPTReport(r) {
 </style></head><body>
 <div class="wrap">
 
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <div class="rpt-header">
     <div style="width:180px;flex-shrink:0">${EEG_SVG}</div>
     <div class="rpt-tagline"><strong>BrainQ10 CPTW 注意力評估測驗</strong>BrainQ10 Continuous Performance Test Web</div>
-    <div id="acpt-qr-box" style="margin-left:auto;text-align:center;flex-shrink:0;padding:6px 0 0 12px">
-      <div id="acpt-qr-inner" style="display:inline-flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="font-size:0.68rem;color:#64748b;font-weight:600">掃描下載 / Scan</div>
-        <div style="width:128px;height:128px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#94a3b8">上傳中…</div>
-        <div style="font-size:0.62rem;color:#94a3b8">有效期 48 小時</div>
-      </div>
-    </div>
   </div>
 
   <button class="btn-print no-print" onclick="window.print()">🖨 列印 / 儲存 PDF</button>
@@ -1803,46 +1792,9 @@ async function showACPTReport(r) {
 
 </div></body></html>`;
 
-  // Open window immediately (must be in user-gesture context to avoid popup blocker)
   const w = window.open('', '_blank', 'width=960,height=800,scrollbars=yes');
-  if (!w) { alert('請允許此頁面開啟新視窗以顯示報告。'); return; }
-  w.document.write(html);
-  w.document.close();
-
-  // Upload report async → generate QR in the opened window
-  try {
-    const resp = await fetch(`${ARTISEBIO_API}/report`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: html,
-    });
-    if (!resp.ok) throw new Error('upload failed');
-    const { url } = await resp.json();
-
-    // Wait for qrcodejs to load in the new window (CDN script)
-    let tries = 0;
-    while (!w.QRCode && tries++ < 30) {
-      await new Promise(res => setTimeout(res, 200));
-    }
-    if (!w.QRCode || !w.document) throw new Error('QRCode lib unavailable');
-
-    const inner = w.document.getElementById('acpt-qr-inner');
-    if (inner) {
-      inner.innerHTML = '<div style="font-size:0.68rem;color:#64748b;font-weight:600;margin-bottom:4px">掃描下載 / Scan to download</div><div id="acpt-qr-canvas"></div><div style="font-size:0.62rem;color:#94a3b8;margin-top:4px">有效期 48 小時 · Expires in 48 h</div>';
-      new w.QRCode(w.document.getElementById('acpt-qr-canvas'), {
-        text: url,
-        width: 128, height: 128,
-        colorDark: '#000000', colorLight: '#ffffff',
-        correctLevel: w.QRCode.CorrectLevel.H,
-      });
-    }
-  } catch (_e) {
-    // Gracefully degrade — report already visible, just no QR
-    try {
-      const inner = w.document && w.document.getElementById('acpt-qr-inner');
-      if (inner) inner.innerHTML = '<div style="font-size:0.68rem;color:#ef4444">QR 產生失敗</div>';
-    } catch (_) { /* ignore */ }
-  }
+  if (w) { w.document.write(html); w.document.close(); }
+  else alert('請允許此頁面開啟新視窗以顯示報告。');
 }
 
 function exportLegacyCSV(r) {

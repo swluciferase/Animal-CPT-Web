@@ -148,7 +148,7 @@ let wasm_bindgen = (function(exports) {
     exports.CptTask = CptTask;
 
     /**
-     * Compute T-scores for all 7 ACPT metrics.
+     * Compute T-scores for all 7 ACPT metrics using the GAMLSS continuous norm model.
      *
      * `metrics_json`: `{"omissions":…,"commissions":…,"HRT":…,"HRTSD":…,
      *                   "Variability":…,"BlockChange":…,"ISIChange":…}`
